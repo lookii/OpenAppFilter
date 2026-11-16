@@ -1,4 +1,5 @@
 <link rel="stylesheet" href="<%=resource%>/oaf/css/common.css">
+<script src="<%=resource%>/oaf/common.js"></script>
 <script src="<%=resource%>/oaf/jquery-3.7.1.min.js"></script>
 <script src="<%=resource%>/oaf/oaf_icon.js"></script>
 <script src="<%=resource%>/oaf/echarts.min.js"></script>
@@ -1410,6 +1411,7 @@
                     <span class="app-stats-select-wrap">
                         <select id="traffic-stats-select" class="app-stats-select">
                             <option value="today" selected><%:Today%></option>
+                            <option value="days7"><%:Last 7 Days%></option>
                             <option value="days30"><%:Last 30 Days%></option>
                         </select>
                     </span>
@@ -1600,6 +1602,7 @@
     var _Total = '<%:Total%>';
     var _Day = '<%:Day%>';
     var _Hour = '<%:Hour%>';
+    var _OtherCategories = '<%:Other%>';
     var _Minute = '<%:Minute%>';
     var _Upstream = '<%:Upstream%>';
     var _Downstream = '<%:Downstream%>';
@@ -1848,8 +1851,9 @@
 
     function fetchHistoryTrafficData(type){
         type = type || currentTrafficStatsType || 'today';
-        var url = type === 'days30' ?
-            '<%=url("admin/services/oaf/api/dashboard/get_history_traffic_stats")%>?days=30' :
+        var daysMap = { days7: 7, days30: 30 };
+        var url = daysMap[type] ?
+            ('<%=url("admin/services/oaf/api/dashboard/get_history_traffic_stats")%>?days=' + daysMap[type]) :
             '<%=url("admin/services/oaf/api/dashboard/get_global_traffic_stats")%>';
 
         new XHR().get(url, null, function(x, data){
@@ -1941,9 +1945,9 @@
             if (duplexText !== '--') {
                 var duplexLower = duplexText.toLowerCase();
                 if (duplexLower === 'full') {
-                    duplexSuffix = '(全双工)';
+                    duplexSuffix = '(<%:Full Duplex%>)';
                 } else if (duplexLower === 'half') {
-                    duplexSuffix = '(半双工)';
+                    duplexSuffix = '(<%:Half Duplex%>)';
                 } else {
                     duplexSuffix = '(' + duplexText + ')';
                 }
@@ -2502,11 +2506,27 @@
             top: '5%', 
             bottom: '10%'
         },
-        series:[{ 
-            type:'pie', 
-            radius:['50%','65%'], 
-            center: ['50%', '45%'], 
-            data:[] 
+        series:[{
+            type:'pie',
+            radius:['50%','65%'],
+            center: ['50%', '45%'],
+            /* P2-11：只保留 Top5 外标签，其余并入「其它」；
+               图内标签只写百分比，名称交给可点击图例，避免引线互相压字 */
+            avoidLabelOverlap: true,
+            minShowLabelAngle: 3,
+            label: {
+                show: true,
+                formatter: '{d}%',
+                fontSize: 11,
+                color: axisLabelColor
+            },
+            labelLine: {
+                length: 8,
+                length2: 6,
+                lineStyle: { color: axisLineColor }
+            },
+            labelLayout: { hideOverlap: true },
+            data:[]
         }]
     });
 
@@ -2534,7 +2554,23 @@
                 name: item.name || ('Category ' + item.app_type),
                 value: item.total_time || 0
             };
+        }).filter(function(item) {
+            return item.value > 0;
+        }).sort(function(a, b) {
+            return b.value - a.value;
         });
+
+        /* 小占比项过多时引线标签会互相遮挡：保留 Top5，其余合并为「其它」 */
+        if (chartData.length > 5) {
+            var rest = chartData.slice(5);
+            var restSum = rest.reduce(function(sum, item) { return sum + item.value; }, 0);
+            chartData = chartData.slice(0, 5);
+            chartData.push({
+                name: _OtherCategories,
+                value: restSum,
+                itemStyle: { color: '#98a2b3' }
+            });
+        }
 
         pieApp.setOption({
             series: [{
@@ -2654,21 +2690,24 @@
         }
 
         var todayText = $native.find('option[value="today"]').text() || 'Today';
+        var days7Text = $native.find('option[value="days7"]').text() || 'Last 7 Days';
         var days30Text = $native.find('option[value="days30"]').text() || 'Last 30 Days';
         var $switch = $('<span id="traffic-stats-switch" class="app-stats-switch">' +
             '<button type="button" id="traffic-stats-switch-btn" class="app-stats-switch-btn"></button>' +
             '<div id="traffic-stats-switch-menu" class="app-stats-switch-menu">' +
             '<button type="button" class="app-stats-switch-item active" data-type="today"></button>' +
+            '<button type="button" class="app-stats-switch-item" data-type="days7"></button>' +
             '<button type="button" class="app-stats-switch-item" data-type="days30"></button>' +
             '</div>' +
             '</span>');
 
         $switch.find('[data-type="today"]').text(todayText);
+        $switch.find('[data-type="days7"]').text(days7Text);
         $switch.find('[data-type="days30"]').text(days30Text);
         $native.closest('.app-stats-select-wrap').after($switch);
 
         var updateSwitch = function(type) {
-            var label = type === 'days30' ? days30Text : todayText;
+            var label = type === 'days30' ? days30Text : (type === 'days7' ? days7Text : todayText);
             $('#traffic-stats-switch-btn').text(label);
             $('#traffic-stats-switch-menu .app-stats-switch-item').removeClass('active');
             $('#traffic-stats-switch-menu .app-stats-switch-item[data-type="' + type + '"]').addClass('active');
@@ -3834,7 +3873,7 @@
         var downData = [];
         var labelInterval = 0;
 
-        if (type === 'days30') {
+        if (type !== 'today') {
             list = data && Array.isArray(data.list) ? data.list : [];
             labelInterval = Math.max(0, Math.floor(list.length / 8));
 
@@ -3908,7 +3947,7 @@
                     var index = params && params.length ? params[0].dataIndex : 0;
                     var item = list[index] || {};
                     var traffic = item.traffic || {};
-                    var label = type === 'days30' ? (item.date_str || labels[index] || '') : (labels[index] || '');
+                    var label = type !== 'today' ? (item.date_str || labels[index] || '') : (labels[index] || '');
                     var up = traffic.up_bytes || item.up_bytes || 0;
                     var down = traffic.down_bytes || item.down_bytes || 0;
                     return label + '<br/>' +
@@ -3965,7 +4004,7 @@
                     smooth: true,
                     symbol: 'circle',
                     symbolSize: 5,
-                    showSymbol: type === 'days30',
+                    showSymbol: type !== 'today',
                     lineStyle: {
                         width: 1.3
                     },
@@ -3980,7 +4019,7 @@
                     smooth: true,
                     symbol: 'circle',
                     symbolSize: 5,
-                    showSymbol: type === 'days30',
+                    showSymbol: type !== 'today',
                     lineStyle: {
                         width: 1.3
                     },

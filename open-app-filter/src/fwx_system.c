@@ -54,6 +54,20 @@ int fwx_get_disable_hnat(void)
     return disable_hnat == 1 ? 1 : 0;
 }
 
+/* URL display is opt-in: not every deployment wants per-device visited URLs
+ * surfaced in LuCI (privacy + a small amount of per-poll work). Default off. */
+int fwx_get_show_visit_url(void)
+{
+    int enabled = 0;
+    struct uci_context *uci_ctx = uci_alloc_context();
+
+    if (!uci_ctx)
+        return 0;
+    enabled = fwx_uci_get_int_value(uci_ctx, "fwx.advanced.show_visit_url");
+    uci_free_context(uci_ctx);
+    return enabled == 1 ? 1 : 0;
+}
+
 int fwx_get_notice_status(void)
 {
     int notice_status = 0;
@@ -225,6 +239,7 @@ struct json_object *fwx_api_get_advanced_settings(struct json_object *req_obj)
     struct json_object *data_obj = json_object_new_object();
 
     json_object_object_add(data_obj, "disable_hnat", json_object_new_int(fwx_get_disable_hnat()));
+    json_object_object_add(data_obj, "show_visit_url", json_object_new_int(fwx_get_show_visit_url()));
 
     return fwx_gen_api_response_data(API_CODE_SUCCESS, data_obj);
 }
@@ -232,19 +247,23 @@ struct json_object *fwx_api_get_advanced_settings(struct json_object *req_obj)
 struct json_object *fwx_api_set_advanced_settings(struct json_object *req_obj)
 {
     struct json_object *disable_hnat_obj;
-    int disable_hnat;
+    struct json_object *show_url_obj;
     struct uci_context *uci_ctx;
+    int disable_hnat;
+    int show_url;
 
     if (!req_obj)
         return fwx_gen_api_response_data(API_CODE_ERROR, NULL);
 
     disable_hnat_obj = json_object_object_get(req_obj, "disable_hnat");
-    if (!disable_hnat_obj) {
-        LOG_ERROR("Missing disable_hnat parameter\n");
+    show_url_obj = json_object_object_get(req_obj, "show_visit_url");
+    /* Both fields are optional so old frontends (disable_hnat only) and the
+     * new URL toggle can be saved independently. */
+    if (!disable_hnat_obj && !show_url_obj) {
+        LOG_ERROR("Missing advanced settings parameters\n");
         return fwx_gen_api_response_data(API_CODE_ERROR, NULL);
     }
 
-    disable_hnat = json_object_get_int(disable_hnat_obj) == 1 ? 1 : 0;
     uci_ctx = uci_alloc_context();
     if (!uci_ctx) {
         LOG_ERROR("Failed to allocate UCI context\n");
@@ -252,14 +271,23 @@ struct json_object *fwx_api_set_advanced_settings(struct json_object *req_obj)
     }
 
     ensure_fwx_advanced_section(uci_ctx);
-    fwx_uci_set_int_value(uci_ctx, "fwx.advanced.disable_hnat", disable_hnat);
+    if (disable_hnat_obj) {
+        disable_hnat = json_object_get_int(disable_hnat_obj) == 1 ? 1 : 0;
+        fwx_uci_set_int_value(uci_ctx, "fwx.advanced.disable_hnat", disable_hnat);
+    } else {
+        disable_hnat = fwx_get_disable_hnat();
+    }
+    if (show_url_obj) {
+        show_url = json_object_get_int(show_url_obj) == 1 ? 1 : 0;
+        fwx_uci_set_int_value(uci_ctx, "fwx.advanced.show_visit_url", show_url);
+    }
     fwx_uci_commit(uci_ctx, "fwx");
     uci_free_context(uci_ctx);
 
     if (disable_hnat == 1)
         system("/usr/bin/hnat.sh >/dev/null 2>&1");
 
-    LOG_DEBUG("Set advanced settings: disable_hnat=%d\n", disable_hnat);
+    LOG_DEBUG("Set advanced settings done\n");
     return fwx_gen_api_response_data(API_CODE_SUCCESS, NULL);
 }
 

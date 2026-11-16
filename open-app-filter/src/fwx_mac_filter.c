@@ -713,6 +713,22 @@ struct json_object *fwx_api_get_mac_filter_rules(struct json_object *req_obj) {
         json_object_object_add(rule_obj, "mode", json_object_new_int(atoi(mode_str)));
         time_mode = normalize_macfilter_time_mode(atoi(time_mode_str));
         json_object_object_add(rule_obj, "user_mac", json_object_new_string(user_mac_str));
+        {
+            struct json_object *macs = json_object_new_array();
+            char macs_buf[2048] = {0};
+            snprintf(buf, sizeof(buf), "macfilter.@rule[%d].user_macs", i);
+            if (fwx_uci_get_list_value(uci_ctx, buf, macs_buf, sizeof(macs_buf), " ") == 0) {
+                char *saveptr = NULL;
+                char *tok = strtok_r(macs_buf, " ", &saveptr);
+                while (tok) {
+                    json_object_array_add(macs, json_object_new_string(tok));
+                    tok = strtok_r(NULL, " ", &saveptr);
+                }
+            } else if (user_mac_str[0]) {
+                json_object_array_add(macs, json_object_new_string(user_mac_str));
+            }
+            json_object_object_add(rule_obj, "user_macs", macs);
+        }
         json_object_object_add(rule_obj, "user_name", json_object_new_string(user_name_str));
         json_object_object_add(rule_obj, "enabled", json_object_new_int(atoi(enabled_str)));
 
@@ -895,6 +911,20 @@ struct json_object *fwx_api_add_mac_filter_rule(struct json_object *req_obj) {
         snprintf(buf, sizeof(buf), "macfilter.@rule[-1].user_mac");
         fwx_uci_set_value(uci_ctx, buf, json_object_get_string(user_mac_obj));
     }
+    {
+        struct json_object *macs_obj = json_object_object_get(req_obj, "user_macs");
+        if (macs_obj && json_object_is_type(macs_obj, json_type_array)) {
+            int k, n = json_object_array_length(macs_obj);
+            for (k = 0; k < n && k < 64; k++) {
+                struct json_object *mi = json_object_array_get_idx(macs_obj, k);
+                const char *mac = mi ? json_object_get_string(mi) : NULL;
+                if (!mac || !mac[0] || strlen(mac) > 32)
+                    continue;
+                snprintf(buf, sizeof(buf), "macfilter.@rule[-1].user_macs");
+                fwx_uci_add_list(uci_ctx, buf, (char *)mac);
+            }
+        }
+    }
     
     if (user_name_obj) {
         snprintf(buf, sizeof(buf), "macfilter.@rule[-1].user_name");
@@ -1043,6 +1073,25 @@ struct json_object *fwx_api_update_mac_filter_rule(struct json_object *req_obj) 
     if (user_mac_obj) {
         snprintf(buf, sizeof(buf), "macfilter.@rule[%d].user_mac", index);
         fwx_uci_set_value(uci_ctx, buf, json_object_get_string(user_mac_obj));
+    }
+    {
+        struct json_object *macs_obj = json_object_object_get(req_obj, "user_macs");
+        if (macs_obj && json_object_is_type(macs_obj, json_type_array)) {
+            char section_key[128];
+            int k, n = json_object_array_length(macs_obj);
+            snprintf(section_key, sizeof(section_key),
+                     "macfilter.@rule[%d].user_macs", index);
+            fwx_uci_delete(uci_ctx, section_key);
+            for (k = 0; k < n && k < 64; k++) {
+                struct json_object *mi = json_object_array_get_idx(macs_obj, k);
+                const char *mac = mi ? json_object_get_string(mi) : NULL;
+                if (!mac || !mac[0] || strlen(mac) > 32)
+                    continue;
+                snprintf(section_key, sizeof(section_key),
+                         "macfilter.@rule[%d].user_macs", index);
+                fwx_uci_add_list(uci_ctx, section_key, (char *)mac);
+            }
+        }
     }
     
     struct json_object *user_name_obj = json_object_object_get(req_obj, "user_name");

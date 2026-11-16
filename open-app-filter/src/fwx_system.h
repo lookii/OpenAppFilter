@@ -10,6 +10,7 @@
 
 struct json_object *get_system_status(void);
 int fwx_get_disable_hnat(void);
+int fwx_get_show_visit_url(void);
 int fwx_get_notice_status(void);
 struct json_object *fwx_api_get_system_info(struct json_object *req_obj);
 struct json_object *fwx_api_set_system_info(struct json_object *req_obj);

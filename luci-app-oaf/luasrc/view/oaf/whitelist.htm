@@ -28,7 +28,19 @@ local has_record = nfs.access("/etc/config/fwx_record")
         padding: 0;
         margin: 10px 0 15px;
         border-bottom: 1px solid var(--border-color-medium, #d1d5db);
-        overflow-x: auto;
+        /* 三个页签放不下时换行，不要保留横向滚动：那是移动端整页可拖的来源之一 */
+        flex-wrap: wrap;
+        row-gap: 6px;
+        overflow-x: hidden;
+        overflow-y: hidden;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .oaf-whitelist-tabs::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
     }
 
     .oaf-whitelist-tab {
@@ -78,12 +90,17 @@ local has_record = nfs.access("/etc/config/fwx_record")
 
     .oaf-whitelist-table-wrap {
         width: 100%;
-        overflow-x: auto;
+        max-width: 100%;
+        /* 表格只有 5 列且按百分比排布，不需要横向滚动；
+           保留 auto 会让手机端仍能左右拖 */
+        overflow-x: hidden;
     }
 
     .oaf-whitelist-table {
         width: 100%;
-        min-width: 680px;
+        max-width: 100%;
+        min-width: 0;
+        table-layout: fixed;
     }
 
     .oaf-whitelist-add-btn {
@@ -282,12 +299,34 @@ local has_record = nfs.access("/etc/config/fwx_record")
     }
 
     @media (max-width: 600px) {
+        /* 窄屏三个页签直接换行排布，不再保留横向滚动，避免整页能左右拖 */
         .oaf-whitelist-tabs {
-            overflow-x: auto;
+            overflow-x: hidden;
+            overflow-y: hidden;
+            flex-wrap: wrap;
+            row-gap: 6px;
         }
 
         .oaf-whitelist-tab {
-            min-width: max-content;
+            flex: 1 1 auto;
+            min-width: 0;
+            margin-right: 0;
+            padding-left: 8px;
+            padding-right: 8px;
+            text-align: center;
+        }
+
+        /* 移动端表格已卡片化，去掉 680px 死宽；外层必须 hidden，
+           visible 会把超宽内容顶到页面上，整页就能左右拖 */
+        .oaf-whitelist-table-wrap {
+            overflow-x: hidden !important;
+            max-width: 100% !important;
+        }
+
+        .oaf-whitelist-table {
+            min-width: 0 !important;
+            width: 100% !important;
+            table-layout: fixed !important;
         }
 
         .oaf-whitelist-panel-header,
@@ -310,6 +349,10 @@ local has_record = nfs.access("/etc/config/fwx_record")
 <script type="text/javascript">//<![CDATA[
 var whitelistText = {
     noEntries: '<%:No whitelist entries yet%>',
+    matched: '<%:Matched %d of %s entry(s)%>',
+    noMatch: '<%:No entry matches the keyword%>',
+    addLabel: '<%:Add to Whitelist%>',
+    whitelistHint: '<%:Users in the whitelist are not subject to control. Devices with random MAC addresses should be added here.%>',
     loading: '<%:Loading...%>',
     deleteLabel: '<%:Delete%>',
     noDevices: '<%:No available devices to add%>',
@@ -374,6 +417,10 @@ function normalizeWhitelistMac(mac) {
     return (mac || '').replace(/^\s+|\s+$/g, '').toUpperCase();
 }
 
+$(document).on('input', '[data-whitelist-search]', function() {
+    renderWhitelistTable($(this).attr('data-whitelist-search'));
+});
+
 function switchWhitelistTab(type) {
     if (!whitelistTypes[type]) {
         return;
@@ -416,17 +463,49 @@ function loadWhitelistUsers(type, callback) {
     });
 }
 
+function getWhitelistQuery(type) {
+    var input = document.querySelector('[data-whitelist-search="' + type + '"]');
+    return input ? String(input.value || '').trim() : '';
+}
+
 function renderWhitelistTable(type) {
     var config = whitelistTypes[type];
     var tableBody = document.getElementById(config.tableBodyId);
+    var q = getWhitelistQuery(type).toLowerCase();
 
     tableBody.innerHTML = '';
     if (config.list.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:30px;color:#999;">' + whitelistText.noEntries + '</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="5"><div class="oaf-empty-state">' +
+            '<span class="oaf-empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg></span>' +
+            '<span class="oaf-empty-text">' + whitelistText.whitelistHint + '</span>' +
+            '<button type="button" class="oaf-empty-action" onclick="showWhitelistModal(\'' + type + '\')">+ ' + whitelistText.addLabel + '</button>' +
+            '</div></td></tr>';
         return;
     }
 
-    config.list.forEach(function(user, index) {
+    var viewList = config.list.filter(function(user) {
+        if (!q) { return true; }
+        var mac = normalizeWhitelistMac(user.mac || '');
+        var hay = [mac, user.hostname || '', user.nickname || ''].join(' ').toLowerCase();
+        return hay.indexOf(q) >= 0;
+    });
+
+    var hintEl = document.querySelector('[data-whitelist-hint="' + type + '"]');
+    if (hintEl) {
+        hintEl.textContent = q
+            ? whitelistText.matched.replace('%d', viewList.length).replace('%s', config.list.length)
+            : '';
+    }
+
+    if (viewList.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="5"><div class="oaf-empty-state">' +
+            '<span class="oaf-empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span>' +
+            '<span class="oaf-empty-text">' + whitelistText.noMatch + '</span>' +
+            '</div></td></tr>';
+        return;
+    }
+
+    viewList.forEach(function(user, index) {
         var row = document.createElement('tr');
         var mac = normalizeWhitelistMac(user.mac || '');
         row.innerHTML = '<td>' + (index + 1) + '</td>' +
@@ -587,8 +666,8 @@ $(function() {
 });
 //]]></script>
 
-<div class="cbi-section cbi-tblsection">
-    <div class="oaf-whitelist-tip">
+<div class="cbi-section cbi-tblsection" id="oafWhitelistSection">
+    <div class="oaf-whitelist-tip oaf-whitelist-notice">
         <%:Users in the whitelist are not subject to control. For terminals using random MAC addresses, you can use the whitelist mechanism together with filtering rules: select All Users in a filtering rule, and the rule will apply to all new users.%>
     </div>
 
@@ -610,6 +689,12 @@ $(function() {
             <h3 style="margin:0;"><%:App Filter Whitelist%></h3>
             <button type="button" class="oaf-whitelist-add-btn" onclick="showWhitelistModal('app_filter')">+ <%:Add to Whitelist%></button>
         </div>
+        <div class="oaf-toolbar" data-whitelist-toolbar="app_filter" data-filter-title="<%:Filter%>">
+            <div class="oaf-toolbar-search">
+                <input type="search" data-whitelist-search="app_filter" placeholder="<%:Search device, MAC or IP%>" autocomplete="off">
+            </div>
+            <span class="oaf-toolbar-hint" data-whitelist-hint="app_filter"></span>
+        </div>
         <div class="oaf-whitelist-table-wrap">
             <table class="common-table oaf-whitelist-table">
                 <thead><tr><th><%:No.%></th><th><%:MAC Address%></th><th><%:Hostname%></th><th><%:Nickname%></th><th><%:Operation%></th></tr></thead>
@@ -625,6 +710,12 @@ $(function() {
             <h3 style="margin:0;"><%:Access Control Whitelist%></h3>
             <button type="button" class="oaf-whitelist-add-btn" onclick="showWhitelistModal('access_control')">+ <%:Add to Whitelist%></button>
         </div>
+        <div class="oaf-toolbar" data-whitelist-toolbar="access_control" data-filter-title="<%:Filter%>">
+            <div class="oaf-toolbar-search">
+                <input type="search" data-whitelist-search="access_control" placeholder="<%:Search device, MAC or IP%>" autocomplete="off">
+            </div>
+            <span class="oaf-toolbar-hint" data-whitelist-hint="access_control"></span>
+        </div>
         <div class="oaf-whitelist-table-wrap">
             <table class="common-table oaf-whitelist-table">
                 <thead><tr><th><%:No.%></th><th><%:MAC Address%></th><th><%:Hostname%></th><th><%:Nickname%></th><th><%:Operation%></th></tr></thead>
@@ -639,6 +730,12 @@ $(function() {
         <div class="oaf-whitelist-panel-header">
             <h3 style="margin:0;"><%:Record Whitelist%></h3>
             <button type="button" class="oaf-whitelist-add-btn" onclick="showWhitelistModal('record')">+ <%:Add to Whitelist%></button>
+        </div>
+        <div class="oaf-toolbar" data-whitelist-toolbar="record" data-filter-title="<%:Filter%>">
+            <div class="oaf-toolbar-search">
+                <input type="search" data-whitelist-search="record" placeholder="<%:Search device, MAC or IP%>" autocomplete="off">
+            </div>
+            <span class="oaf-toolbar-hint" data-whitelist-hint="record"></span>
         </div>
         <div class="oaf-whitelist-table-wrap">
             <table class="common-table oaf-whitelist-table">

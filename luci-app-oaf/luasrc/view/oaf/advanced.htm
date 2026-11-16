@@ -180,16 +180,89 @@ local has_access_control = nfs.access("/etc/config/macfilter")
         </div>
     </section>
 
-    <div class="settings-actions">
+    <section class="settings-panel">
+        <button type="button" class="settings-panel-header" aria-expanded="true" aria-controls="backup-settings-panel">
+            <span><%:Backup and Restore%></span>
+            <span class="settings-chevron" aria-hidden="true"></span>
+        </button>
+        <div class="settings-panel-body" id="backup-settings-panel">
+            <div class="form-row">
+                <label class="form-label"><%:Configuration Backup%></label>
+                <div class="settings-field">
+                    <div class="backup-actions">
+                        <button type="button" class="btn" id="btn-export-settings"><%:Export%></button>
+                        <button type="button" class="btn btn-secondary" id="btn-import-settings"><%:Import%></button>
+                        <input type="file" id="file-import-settings" accept="application/json,.json" style="display:none;">
+                    </div>
+                    <div class="form-desc-inline"><%:Export or restore all OAF settings, including filter rules, access control rules, whitelists, user nicknames and system options. Internet audit history is not included.%></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="settings-panel">
+        <button type="button" class="settings-panel-header" aria-expanded="true" aria-controls="url-record-settings-panel">
+            <span><%:URL Access Records%></span>
+            <span class="settings-chevron" aria-hidden="true"></span>
+        </button>
+        <div class="settings-panel-body" id="url-record-settings-panel">
+            <div class="form-row">
+                <label class="form-label" for="url-record-enabled"><%:Enable URL access records%></label>
+                <label class="switch">
+                    <input type="checkbox" id="url-record-enabled">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="form-row">
+                <label class="form-label" for="url-record-days"><%:Retention days%></label>
+                <div class="settings-field">
+                    <input type="number" id="url-record-days" min="1" max="365">
+                </div>
+            </div>
+            <div class="form-row">
+                <label class="form-label"><%:Select Users%></label>
+                <div class="settings-field">
+                    <div class="oaf-user-check-toolbar">
+                        <div>
+                            <button type="button" class="btn" id="url-record-select-all"><%:Select All%></button>
+                            <button type="button" class="btn btn-secondary" id="url-record-clear"><%:Clear%></button>
+                        </div>
+                        <span id="url-record-stats" class="oaf-user-check-stat"><%:Selected%>: 0 / 0</span>
+                    </div>
+                    <div id="url-record-users" class="oaf-user-check-list"></div>
+                </div>
+            </div>
+            <div class="form-row" id="url-record-save-row">
+                <label class="form-label"></label>
+                <div class="settings-field">
+                    <button type="button" class="btn" id="url-record-save"><%:Save%></button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="settings-actions" id="settings-actions">
+        <span class="settings-dirty-hint"><%:You have unsaved changes%></span>
+        <div class="status-tip" id="settings-tip"></div>
+        <button class="btn btn-secondary" type="button" id="settings-revert"><%:Discard Changes%></button>
         <button class="btn btn-secondary" type="button" id="settings-refresh"><%:Refresh%></button>
-        <button class="btn" type="button" id="settings-save" disabled><%:Save%></button>
+        <button class="btn" type="button" id="settings-save"><%:Save All Settings%></button>
     </div>
-    <div class="status-tip" id="settings-tip"></div>
 </div>
 
 <style>
-.settings-page{max-width:860px;margin:0 auto 16px;padding:0 10px}.settings-heading{font-size:20px;font-weight:600;margin:8px 0 14px}.settings-panel{border:1px solid var(--border-color-low,#e5e7eb);border-radius:7px;margin-bottom:12px;background:var(--background-color-high,transparent);overflow:hidden}.settings-panel-header{width:100%;border:0;border-bottom:1px solid var(--border-color-low,#e5e7eb);background:var(--background-color-low,rgba(0,0,0,.025));color:inherit;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;font-size:16px;font-weight:600;text-align:left;cursor:pointer}.settings-panel-header.collapsed{border-bottom-color:transparent}.settings-chevron{width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);transition:transform .15s ease;margin:0 4px 4px 12px}.settings-panel-header.collapsed .settings-chevron{transform:rotate(-45deg);margin-bottom:0}.settings-panel-body{padding:16px}.settings-panel-body .form-row{align-items:flex-start;margin-bottom:16px}.settings-panel-body .switch{margin-top:2px;flex:none}.settings-field{flex:1;min-width:0}.settings-field>input,.settings-field>select{width:360px;max-width:100%}.form-desc-inline{margin-top:5px;font-size:12px;line-height:1.5;color:var(--text-color-medium,#6b7280)}.field-error{display:none;color:#f87171;font-size:12px;margin-top:4px}.work-mode-warning{display:none;margin:0 0 16px 150px;padding:10px 14px 10px 30px;border:1px solid rgba(239,68,68,.4);border-radius:6px;background:rgba(239,68,68,.08);color:#dc2626;font-size:13px;line-height:1.6}.work-mode-warning li{margin:2px 0}.data-size-field,.size-field{display:flex;align-items:center;gap:10px}.data-clean-btn{min-width:64px}.size-field input{width:320px!important}.size-field .unit{color:var(--text-color-medium,#6b7280)}.settings-actions{display:flex;justify-content:flex-end;gap:8px;padding-top:4px}.settings-page>.status-tip{text-align:right}.settings-panel-header:focus-visible{outline:2px solid #3b82f6;outline-offset:-2px}[data-darkmode="true"] .work-mode-warning{border-color:rgba(248,113,113,.55);background:rgba(127,29,29,.26);color:#fca5a5}
+.backup-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.settings-page{max-width:100%;margin:0 auto 16px;padding:0 10px}.settings-heading{font-size:20px;font-weight:600;margin:8px 0 14px}.settings-panel{border:1px solid var(--border-color-low,#e5e7eb);border-radius:7px;margin-bottom:12px;background:var(--background-color-high,transparent);overflow:hidden}.settings-panel-header{width:100%;border:0;border-bottom:1px solid var(--border-color-low,#e5e7eb);background:var(--background-color-low,rgba(0,0,0,.025));color:inherit;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;font-size:16px;font-weight:600;text-align:left;cursor:pointer}.settings-panel-header.collapsed{border-bottom-color:transparent}.settings-chevron{width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);transition:transform .15s ease;margin:0 4px 4px 12px}.settings-panel-header.collapsed .settings-chevron{transform:rotate(-45deg);margin-bottom:0}.settings-panel-body{padding:16px}.settings-panel-body .form-row{align-items:flex-start;margin-bottom:16px}.settings-panel-body .switch{margin-top:2px;flex:none}.settings-field{flex:1;min-width:0}.settings-field>input,.settings-field>select{width:360px;max-width:100%}.form-desc-inline{margin-top:5px;font-size:12.5px;line-height:1.5;color:#475467}.field-error{display:none;color:#f87171;font-size:12px;margin-top:4px}.work-mode-warning{display:none;margin:0 0 16px 150px;padding:10px 14px 10px 30px;border:1px solid rgba(239,68,68,.4);border-radius:6px;background:rgba(239,68,68,.08);color:#dc2626;font-size:13px;line-height:1.6}.work-mode-warning li{margin:2px 0}.data-size-field,.size-field{display:flex;align-items:center;gap:10px}.data-clean-btn{min-width:64px}.size-field input{width:320px!important}.size-field .unit{color:#475467}.settings-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;position:sticky;bottom:0;z-index:20;padding:12px 4px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--border-color-low,#eaecf0);background:var(--background-color-high,#fff);box-shadow:0 -6px 14px -10px rgba(16,24,40,.18)}.settings-page>.status-tip{text-align:right}.settings-panel-header:focus-visible{outline:2px solid #3b82f6;outline-offset:-2px}[data-darkmode="true"] .work-mode-warning{border-color:rgba(248,113,113,.55);background:rgba(127,29,29,.26);color:#fca5a5}
 @media(max-width:600px){.settings-page{padding:0 4px}.settings-panel-header{padding:11px 12px}.settings-panel-body{padding:13px 12px}.settings-panel-body .form-row{display:block}.settings-panel-body .form-label{display:block;width:auto;margin-bottom:7px}.work-mode-warning{margin-left:0}.settings-field>input,.settings-field>select,.settings-panel-body>.form-row>select{width:100%}.size-field input{width:100%!important;min-width:0}.settings-actions{padding-right:2px}}
+.oaf-user-check-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:6px}
+.oaf-user-check-stat{color:var(--text-color-medium,#6b7280);font-size:13px;white-space:nowrap}
+.oaf-user-check-list{min-height:110px;max-height:180px;overflow-y:auto;border:1px solid var(--border-color-low,#d1d5db);border-radius:4px;background:var(--background-color-low,#f5f5f5)}
+.oaf-user-check-item{display:flex;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border-color-low,#d1d5db);background:var(--background-color-high,#fff);color:var(--text-color-high,#1f2937);cursor:pointer}
+.oaf-user-check-item:last-child{border-bottom:none}
+.oaf-user-check-item:hover{background:var(--background-color-medium,#eee)}
+.oaf-user-check-item .oaf-check-item{width:100%;display:flex;align-items:center}
+.oaf-user-check-item .oaf-check-item>input[type="checkbox"]{margin:0 10px 0 0;flex:0 0 auto}
+.oaf-user-check-item .oaf-check-item>label{flex:1;min-width:0;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;cursor:pointer}
 </style>
 
 <script type="text/javascript">//<![CDATA[
@@ -207,7 +280,13 @@ local has_access_control = nfs.access("/etc/config/macfilter")
         longBasePath: '<%:Base data path maximum length is 64 characters%>',
         cleanConfirm: '<%:Are you sure you want to clean all history data? This action cannot be undone.%>',
         cleanSuccess: '<%:Data cleaned successfully%>',
-        cleanFailed: '<%:Clean failed%>'
+        cleanFailed: '<%:Clean failed%>',
+        exportFailed: '<%:Export failed%>',
+        importFailed: '<%:Import failed%>',
+        importSuccess: '<%:Settings imported%>',
+        invalidBackup: '<%:Invalid backup file%>',
+        invalidJson: '<%:Invalid JSON file%>',
+        importConfirm: '<%:Replace all current OAF settings with this backup? This cannot be undone.%>'
     };
     var api = {
         workModeGet: '<%=url("admin/services/oaf/api/system/get_work_mode")%>',
@@ -224,10 +303,116 @@ local has_access_control = nfs.access("/etc/config/macfilter")
         advancedSet: '<%=url("admin/services/oaf/api/system/set_advanced_settings")%>',
         recordGet: '<%=url("admin/services/oaf/api/internet_audit/get_record_base")%>',
         recordSet: '<%=url("admin/services/oaf/api/internet_audit/set_record_base")%>',
-        recordAction: '<%=url("admin/services/oaf/api/internet_audit/record_action")%>'
+        recordAction: '<%=url("admin/services/oaf/api/internet_audit/record_action")%>',
+        settingsExport: '<%=url("admin/services/oaf/api/system/export_all_settings")%>',
+        settingsImport: '<%=url("admin/services/oaf/api/system/import_all_settings")%>',
+        urlRecordGet: '<%=url("admin/services/oaf/api/system/get_url_record_settings")%>',
+        urlRecordSet: '<%=url("admin/services/oaf/api/system/set_url_record_settings")%>',
+        allUsers: '<%=url("admin/services/oaf/api/get_all_users")%>'
     };
     var currentThemeMode = 0;
     var settingsLoaded = false;
+    var urlRecordUsersReady = false;
+    var urlRecordSettingsData = null;
+
+    function updateUrlRecordStats() {
+        var boxes = $('#url-record-users input[type="checkbox"]');
+        $('#url-record-stats').text('<%:Selected%>: ' + boxes.filter(':checked').length + ' / ' + boxes.length);
+    }
+
+    function renderUrlRecordUsers(list) {
+        var $list = $('#url-record-users').empty();
+        (list || []).forEach(function(user, index) {
+            var macVal = (user && user.mac) ? String(user.mac) : '';
+            var extra = '';
+            if (user && user.nickname && String(user.nickname).trim() !== '') {
+                extra = String(user.nickname).trim();
+            } else if (user && user.hostname && String(user.hostname).trim() !== '' && user.hostname !== '*') {
+                extra = String(user.hostname).trim();
+            } else if (user && user.ip && String(user.ip).trim() !== '') {
+                extra = String(user.ip).trim();
+            }
+            var display = extra ? macVal + ' (' + extra + ')' : macVal;
+            var checkId = 'url-record-user-chk-' + index;
+            var $item = $('<div class="oaf-user-check-item"></div>');
+            var $wrap = $('<div class="oaf-check-item"></div>');
+            var $checkbox = $('<input type="checkbox">').attr('id', checkId).val(macVal).on('change', updateUrlRecordStats);
+            var $label = $('<label></label>').attr('for', checkId).text(display);
+            $wrap.append($checkbox).append($label);
+            $item.append($wrap);
+            $item.on('click', function(event) {
+                if (!$(event.target).closest('.oaf-check-item').length) {
+                    $checkbox.prop('checked', !$checkbox.prop('checked')).trigger('change');
+                }
+            });
+            $list.append($item);
+        });
+        urlRecordUsersReady = true;
+        tryApplyUrlRecordSettings();
+        updateUrlRecordStats();
+    }
+
+    function tryApplyUrlRecordSettings() {
+        if (!urlRecordUsersReady || !urlRecordSettingsData) return;
+        var data = urlRecordSettingsData;
+        $('#url-record-enabled').prop('checked', String(data.enabled) === '1');
+        var days = parseInt(data.days, 10);
+        if (isNaN(days) || days < 1 || days > 365) days = 7;
+        $('#url-record-days').val(days);
+        var macs = Array.isArray(data.macs) ? data.macs : [];
+        var selected = {};
+        macs.forEach(function(m) { selected[String(m).toLowerCase()] = true; });
+        $('#url-record-users input[type="checkbox"]').each(function() {
+            this.checked = !!selected[String($(this).val()).toLowerCase()];
+        });
+        updateUrlRecordStats();
+    }
+
+    function loadUrlRecordUsers() {
+        $.getJSON(api.allUsers, {flag: 2, page: 0}).done(function(resp) {
+            var list = (resp && resp.data && Array.isArray(resp.data.list)) ? resp.data.list : [];
+            renderUrlRecordUsers(list);
+        }).fail(function() {
+            renderUrlRecordUsers([]);
+        });
+    }
+
+    function loadUrlRecordSettings() {
+        $.getJSON(api.urlRecordGet).done(function(resp) {
+            if (isSuccess(resp) && resp.data) {
+                urlRecordSettingsData = resp.data;
+                tryApplyUrlRecordSettings();
+            } else {
+                showResult(text.loadFailed, false);
+            }
+        }).fail(function() {
+            showResult(text.loadFailed, false);
+        });
+    }
+
+    function collectUrlRecordSettings() {
+        var enabled = $('#url-record-enabled').is(':checked') ? 1 : 0;
+        var days = parseInt($('#url-record-days').val(), 10);
+        if (isNaN(days) || days < 1 || days > 365) days = 7;
+        var macs = [];
+        $('#url-record-users input[type="checkbox"]:checked').each(function() {
+            macs.push(String($(this).val()).toLowerCase());
+        });
+        return {enabled: enabled, days: days, macs: macs};
+    }
+
+    function saveUrlRecordSettings() {
+        $('#url-record-save').prop('disabled', true);
+        $.ajax({url: api.urlRecordSet, method: 'POST', dataType: 'json',
+                data: {data: JSON.stringify(collectUrlRecordSettings())}})
+            .done(function(resp) {
+                var ok = isSuccess(resp);
+                showResult(ok ? text.saved : text.saveFailed, ok);
+                if (ok) loadUrlRecordSettings();
+            })
+            .fail(function() { showResult(text.saveFailed, false); })
+            .always(function() { $('#url-record-save').prop('disabled', false); });
+    }
 
     function isSuccess(resp) {
         return !!resp && (resp.code === 0 || resp.code === 2000);
@@ -307,6 +492,9 @@ local has_access_control = nfs.access("/etc/config/macfilter")
         }
     }
 
+    text.unsavedWarning = text.unsavedWarning || '<%:You have unsaved changes. Leave anyway?%>';
+    text.discardConfirm = text.discardConfirm || '<%:Discard unsaved changes and reload current settings?%>';
+
     function refreshAll() {
         var tasks = [];
 
@@ -345,7 +533,8 @@ local has_access_control = nfs.access("/etc/config/macfilter")
         runTasks(tasks, function(success) {
             settingsLoaded = success;
             $('#settings-refresh').prop('disabled', false);
-            $('#settings-save').prop('disabled', !success);
+            // 保存按钮不再被任一 GET 失败永久禁用：各设置项独立可读可写
+            $('#settings-save').prop('disabled', false);
             $('#settings-tip').text(success ? '' : text.loadFailed);
         });
     }
@@ -393,10 +582,6 @@ local has_access_control = nfs.access("/etc/config/macfilter")
         var values;
         var tasks = [];
 
-        if (!settingsLoaded) {
-            showResult(text.loadFailed, false);
-            return;
-        }
         values = validateSettings();
         if (!values) return;
 
@@ -409,7 +594,9 @@ local has_access_control = nfs.access("/etc/config/macfilter")
         <% if has_access_control then %>
         tasks.push(postTask(api.accessControlSet, {enable:$('#access-control-enable').is(':checked') ? 1 : 0}));
         <% end %>
-        tasks.push(postTask(api.advancedSet, {disable_hnat:$('#disable-hnat').is(':checked') ? 1 : 0}));
+        tasks.push(postTask(api.advancedSet, {
+            disable_hnat:$('#disable-hnat').is(':checked') ? 1 : 0
+        }));
         tasks.push(postTask(api.recordSet, {
             enable:$('#rec-enable').is(':checked') ? 1 : 0,
             record_time:parseInt($('#rec-keep').val(), 10) || 0,
@@ -418,12 +605,25 @@ local has_access_control = nfs.access("/etc/config/macfilter")
             history_data_path:values.historyPath,
             base_data_path:values.basePath
         }));
+        /* URL 记录分区的独立保存已并入这里，隐藏分区按钮不会丢功能 */
+        tasks.push(postTask(api.urlRecordSet,
+            {data: JSON.stringify(collectUrlRecordSettings())}));
 
         $('#settings-refresh,#settings-save').prop('disabled', true);
         runTasks(tasks, function(success) {
             $('#settings-refresh,#settings-save').prop('disabled', false);
             updateWorkModeWarning($('#work-mode').val());
             showResult(success ? text.saved : text.saveFailed, success);
+            if (success) {
+                clearSettingsDirty();
+                if (typeof oafToast === 'function') { oafToast(text.saved); }
+            }
+            // 回读一次高级设置，用实际落盘值刷新开关，避免前端显示与配置不一致
+            $.getJSON(api.advancedGet).done(function(resp) {
+                if (isSuccess(resp) && resp.data) {
+                    $('#disable-hnat').prop('checked', resp.data.disable_hnat == 1);
+                }
+            });
         });
     }
 
@@ -444,6 +644,63 @@ local has_access_control = nfs.access("/etc/config/macfilter")
         });
     }
 
+    function exportSettings() {
+        $('#btn-export-settings').prop('disabled', true);
+        $.getJSON(api.settingsExport).done(function(resp) {
+            if (!isSuccess(resp) || !resp.data) {
+                showResult(text.exportFailed, false);
+                return;
+            }
+            var blob = new Blob([JSON.stringify(resp, null, 2)], {type: 'application/json'});
+            var downloadUrl = window.URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = 'oaf-settings-' + new Date().toISOString().slice(0, 10) + '.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(downloadUrl);
+        }).fail(function() {
+            showResult(text.exportFailed, false);
+        }).always(function() {
+            $('#btn-export-settings').prop('disabled', false);
+        });
+    }
+
+    function importSettings(file) {
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+            var parsed;
+            try {
+                parsed = JSON.parse(ev.target.result);
+            } catch (err) {
+                showResult(text.invalidJson, false);
+                return;
+            }
+            if (!parsed || !parsed.data || !parsed.data.files ||
+                parsed.data.format !== 'oaf-settings') {
+                showResult(text.invalidBackup, false);
+                return;
+            }
+            if (!window.confirm(text.importConfirm)) return;
+            $('#btn-import-settings').prop('disabled', true);
+            $.ajax({url:api.settingsImport, method:'POST', dataType:'json',
+                    data:{data:JSON.stringify(parsed)}})
+                .done(function(resp) {
+                    if (isSuccess(resp)) {
+                        showResult(text.importSuccess, true);
+                        refreshAll();
+                    } else {
+                        showResult(text.importFailed, false);
+                    }
+                })
+                .fail(function() { showResult(text.importFailed, false); })
+                .always(function() { $('#btn-import-settings').prop('disabled', false); });
+        };
+        reader.onerror = function() { showResult(text.invalidJson, false); };
+        reader.readAsText(file);
+    }
+
     $('.settings-panel-header').on('click', function() {
         var header = $(this);
         var panel = $('#' + header.attr('aria-controls'));
@@ -452,9 +709,60 @@ local has_access_control = nfs.access("/etc/config/macfilter")
         panel.stop(true, true).slideToggle(120);
     });
     $('#work-mode').on('change', function() { updateWorkModeWarning(this.value); });
-    $('#settings-refresh').on('click', refreshAll);
+    var settingsDirty = false;
+
+    function markSettingsDirty() {
+        if (settingsDirty) { return; }
+        settingsDirty = true;
+        $('#settings-actions').addClass('is-dirty');
+    }
+
+    function clearSettingsDirty() {
+        settingsDirty = false;
+        $('#settings-actions').removeClass('is-dirty');
+    }
+
+    $(document).on('change input', '.settings-page input, .settings-page select', function() {
+        markSettingsDirty();
+    });
+
+    $(window).on('beforeunload', function() {
+        if (!settingsDirty) { return undefined; }
+        return text.unsavedWarning;
+    });
+
+    $('#settings-revert').on('click', function() {
+        if (!settingsDirty) { return; }
+        if (!window.confirm(text.discardConfirm)) { return; }
+        clearSettingsDirty();
+        refreshAll();
+    });
+
+    $('#settings-refresh').on('click', function() {
+        clearSettingsDirty();
+        refreshAll();
+    });
     $('#settings-save').on('click', saveAll);
     $('#clean-history').on('click', cleanHistory);
+    $('#btn-export-settings').on('click', exportSettings);
+    $('#btn-import-settings').on('click', function() {
+        $('#file-import-settings').val('').click();
+    });
+    $('#file-import-settings').on('change', function(e) {
+        var f = e.target.files && e.target.files[0];
+        if (f) importSettings(f);
+    });
+    $('#url-record-select-all').on('click', function() {
+        $('#url-record-users input[type="checkbox"]').prop('checked', true);
+        updateUrlRecordStats();
+    });
+    $('#url-record-clear').on('click', function() {
+        $('#url-record-users input[type="checkbox"]').prop('checked', false);
+        updateUrlRecordStats();
+    });
+    $('#url-record-save').on('click', saveUrlRecordSettings);
+    $(loadUrlRecordUsers);
+    $(loadUrlRecordSettings);
     $(refreshAll);
 })();
 //]]></script>

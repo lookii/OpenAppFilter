@@ -39,8 +39,12 @@
 #include "fwx_firewall.h"
 #include "fwx_system.h"
 #include "fwx_stat.h"
+#include "fwx_url_record.h"
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <libubox/list.h>
 
 extern fwx_status_t g_fwx_status;
@@ -1673,11 +1677,46 @@ static void build_dashboard_version(struct json_object *system_status, char *ver
     }
 }
 
+/* A rule in "selected users" mode carries the whole mac list in user_macs and
+ * only keeps the first mac in the legacy user_mac field. Matching on user_mac
+ * alone made multi-user rules show up on the first device only, so the list is
+ * always consulted first and the single field is just a fallback. */
+static int pc_rule_matches_mac(struct json_object *rule_obj, const char *target_mac)
+{
+    struct json_object *macs_obj = NULL;
+    struct json_object *user_mac_obj = NULL;
+    const char *user_mac = NULL;
+    int len = 0, i;
+
+    if (json_object_object_get_ex(rule_obj, "user_macs", &macs_obj) &&
+        macs_obj && json_object_is_type(macs_obj, json_type_array)) {
+        len = json_object_array_length(macs_obj);
+        for (i = 0; i < len; i++) {
+            struct json_object *item = json_object_array_get_idx(macs_obj, i);
+            const char *m = item ? json_object_get_string(item) : NULL;
+
+            if (m && m[0] && strcasecmp(m, target_mac) == 0) {
+                return 1;
+            }
+        }
+        if (len > 0) {
+            return 0;
+        }
+    }
+
+    if (json_object_object_get_ex(rule_obj, "user_mac", &user_mac_obj)) {
+        user_mac = json_object_get_string(user_mac_obj);
+    }
+    if (user_mac && user_mac[0] != '\0') {
+        return strcasecmp(user_mac, target_mac) == 0 ? 1 : 0;
+    }
+    /* Legacy rule without any user field applies to everyone. */
+    return 1;
+}
+
 static int pc_is_rule_applicable(struct json_object *rule_obj, const char *target_mac)
 {
     struct json_object *mode_obj = NULL;
-    struct json_object *user_mac_obj = NULL;
-    const char *user_mac = NULL;
     int mode = 1;
 
     if (!rule_obj || !json_object_is_type(rule_obj, json_type_object) || !target_mac || target_mac[0] == '\0') {
@@ -1687,21 +1726,11 @@ static int pc_is_rule_applicable(struct json_object *rule_obj, const char *targe
     if (json_object_object_get_ex(rule_obj, "mode", &mode_obj)) {
         mode = json_object_get_int(mode_obj);
     }
-    if (json_object_object_get_ex(rule_obj, "user_mac", &user_mac_obj)) {
-        user_mac = json_object_get_string(user_mac_obj);
-    }
 
     if (mode == 1) {
         return 1;
     }
-    if (mode == 2) {
-        return (user_mac && user_mac[0] != '\0' && strcasecmp(user_mac, target_mac) == 0) ? 1 : 0;
-    }
-
-    if (!user_mac || user_mac[0] == '\0') {
-        return 1;
-    }
-    return strcasecmp(user_mac, target_mac) == 0 ? 1 : 0;
+    return pc_rule_matches_mac(rule_obj, target_mac);
 }
 
 static struct json_object *pc_build_appfilter_rule(struct json_object *rule_obj, int current_weekday, int current_minutes)
@@ -2485,7 +2514,7 @@ void all_users_callback(void *arg, client_node_t *client)
         json_object_object_add(user_obj, "applist", app_array);
         LOG_DEBUG("all_users_callback: Added %d apps to applist for mac=%s\n", app_count, client->mac);
 
-        if (strlen(client->visiting_url) > 0)
+        if (fwx_get_show_visit_url() && strlen(client->visiting_url) > 0)
             json_object_object_add(user_obj, "url", json_object_new_string(client->visiting_url));
         else
             json_object_object_add(user_obj, "url", json_object_new_string(""));
@@ -7528,7 +7557,7 @@ struct json_object *fwx_api_get_active_users(struct json_object *req_obj) {
             json_object_object_add(user_obj, "app", json_object_new_string(""));
         }
         
-        if (strlen(active_user_list[i].visiting_url) > 0) {
+        if (fwx_get_show_visit_url() && strlen(active_user_list[i].visiting_url) > 0) {
             json_object_object_add(user_obj, "url", json_object_new_string(active_user_list[i].visiting_url));
         } else {
             json_object_object_add(user_obj, "url", json_object_new_string(""));
@@ -7585,6 +7614,10 @@ struct json_object *fwx_api_get_user_basic_info(struct json_object *req_obj) {
             json_object_object_add(data_obj, "ipv6", json_object_new_string(client->ipv6));
             json_object_object_add(data_obj, "nickname", json_object_new_string(client->nickname));
             json_object_object_add(data_obj, "hostname", json_object_new_string(client->hostname));
+            json_object_object_add(data_obj, "visiting_url",
+                json_object_new_string(fwx_get_show_visit_url() ? client->visiting_url : ""));
+            json_object_object_add(data_obj, "show_visit_url",
+                json_object_new_int(fwx_get_show_visit_url()));
             json_object_object_add(data_obj, "online", json_object_new_int(client->online));
             json_object_object_add(data_obj, "active", json_object_new_int(client->active));
             json_object_object_add(data_obj, "af_whitelist", json_object_new_int(is_appfilter_whitelist_mac(client->mac) ? 1 : 0));
@@ -7598,6 +7631,8 @@ struct json_object *fwx_api_get_user_basic_info(struct json_object *req_obj) {
             json_object_object_add(data_obj, "wifi_ifname", json_object_new_string(client->wifi_ifname));
             json_object_object_add(data_obj, "is_wireless", json_object_new_int(client->is_wireless));
             json_object_object_add(data_obj, "terminal_type", json_object_new_string(client->is_wireless ? "wireless" : "wired"));
+            json_object_object_add(data_obj, "url_record_enabled",
+                json_object_new_int(fwx_url_record_enabled_for_mac(target_mac)));
             
 
             daily_hourly_stat_t *today_stat = get_today_stat(client);
@@ -8503,19 +8538,52 @@ static int fwx_api_need_copyright(const char *api_name) {
     return api_name && strcmp(api_name, "class_list") == 0;
 }
 
-static void fwx_forward_to_agent(struct json_object *req_obj) {
-	char *cmd_buf = NULL;
-	if (!req_obj)
-		return;
-    const char *req_str = json_object_to_json_string(req_obj);
-	int buf_len = strlen(req_str) + 128;
-	cmd_buf = (char *)malloc(buf_len);
-	if (!cmd_buf)
-		return;
-    snprintf(cmd_buf, buf_len, "ubus -t 2 call fwx_agent forward '%s'", req_str);
-	
-  	system(cmd_buf);
-	free(cmd_buf);
+/*
+ * Security fix (P0-1):
+ * The old implementation interpolated the whole request JSON into a shell
+ * command  "ubus -t 2 call fwx_agent forward '%s'"  and passed it to system().
+ * json-c does NOT escape single quotes, so any string field containing a
+ * single quote (a rule name, a nickname, ...) could close the quote and
+ * append arbitrary commands, executed as root because oafd runs as root.
+ *
+ * Fix: invoke ubus directly with an argv array -- no shell is involved at
+ * all. The JSON is passed as ONE opaque argument, so shell metacharacters
+ * lose their meaning. The 2s ubus timeout and the synchronous behaviour of
+ * the original system() call are preserved; the child is reaped to avoid
+ * zombies in the long-running daemon.
+ */
+static void fwx_forward_to_agent(struct json_object *req_obj)
+{
+    const char *req_str;
+    pid_t pid;
+
+    if (!req_obj)
+        return;
+
+    req_str = json_object_to_json_string(req_obj);
+    if (!req_str)
+        return;
+
+    pid = fork();
+    if (pid < 0) {
+        LOG_WARN("fwx_forward_to_agent: fork failed: %s\n", strerror(errno));
+        return;
+    }
+
+    if (pid == 0) {
+        char *const argv[] = {
+            "ubus", "-t", "2", "call", "fwx_agent", "forward",
+            (char *)req_str, NULL
+        };
+        execvp("ubus", argv);
+        _exit(127);
+    }
+
+    /* system() is synchronous; keep the same behaviour and reap the child. */
+    while (waitpid(pid, NULL, 0) < 0) {
+        if (errno != EINTR)
+            break;
+    }
 }
 
 struct json_object *fwx_api_get_dashboard_common(struct json_object *req_obj);
@@ -8561,6 +8629,15 @@ struct json_object *fwx_api_get_init_status(struct json_object *req_obj);
 struct json_object *fwx_api_set_init_status(struct json_object *req_obj);
 struct json_object *fwx_api_set_dashboard_param(struct json_object *req_obj);
 struct json_object *fwx_api_get_system_base_info(struct json_object *req_obj);
+struct json_object *fwx_api_test_custom_feature(struct json_object *req_obj);
+struct json_object *fwx_api_export_filter_rules(struct json_object *req_obj);
+struct json_object *fwx_api_import_filter_rules(struct json_object *req_obj);
+struct json_object *fwx_api_get_url_record_settings(struct json_object *req_obj);
+struct json_object *fwx_api_set_url_record_settings(struct json_object *req_obj);
+struct json_object *fwx_api_get_url_records(struct json_object *req_obj);
+struct json_object *fwx_api_get_url_list(struct json_object *req_obj);
+struct json_object *fwx_api_add_url_list(struct json_object *req_obj);
+struct json_object *fwx_api_del_url_list(struct json_object *req_obj);
 
 
 
@@ -8568,6 +8645,7 @@ static fwx_api_node_t fwx_api_node_list[] = {
     {"get_custom_feature", fwx_api_get_custom_feature, 0, FWX_API_METHOD_GET},
     {"get_custom_feature_class_list", fwx_api_get_custom_feature_class_list, 0, FWX_API_METHOD_GET},
     {"set_custom_feature", fwx_api_set_custom_feature, 0, FWX_API_METHOD_POST},
+    {"test_custom_feature", fwx_api_test_custom_feature, 0, FWX_API_METHOD_POST},
     {"get_feature_info", fwx_api_get_feature_info, 0, FWX_API_METHOD_GET},
     {"get_feature_online_config", fwx_api_get_feature_online_config, 0, FWX_API_METHOD_GET},
     {"set_feature_online_config", fwx_api_set_feature_online_config, 0, FWX_API_METHOD_POST},
@@ -8587,6 +8665,8 @@ static fwx_api_node_t fwx_api_node_list[] = {
     {"get_active_app_records", fwx_api_get_active_app_records, 0, FWX_API_METHOD_GET},
     {"get_app_history_records", fwx_api_get_app_history_records, 0, FWX_API_METHOD_GET},
     {"get_filter_rules", fwx_api_get_filter_rules, 0, FWX_API_METHOD_GET},
+    {"export_filter_rules", fwx_api_export_filter_rules, 0, FWX_API_METHOD_GET},
+    {"import_filter_rules", fwx_api_import_filter_rules, 1, FWX_API_METHOD_POST},
     {"add_filter_rule", fwx_api_add_filter_rule, 1, FWX_API_METHOD_POST},
     {"update_filter_rule", fwx_api_update_filter_rule, 1, FWX_API_METHOD_POST},
     {"delete_filter_rule", fwx_api_delete_filter_rule, 1, FWX_API_METHOD_POST},
@@ -8662,6 +8742,12 @@ static fwx_api_node_t fwx_api_node_list[] = {
     {"get_init_status", fwx_api_get_init_status, 0, FWX_API_METHOD_GET},
     {"set_init_status", fwx_api_set_init_status, 0, FWX_API_METHOD_POST},
     {"set_dashboard_param", fwx_api_set_dashboard_param, 1, FWX_API_METHOD_POST},
+    {"get_url_record_settings", fwx_api_get_url_record_settings, 0, FWX_API_METHOD_GET},
+    {"set_url_record_settings", fwx_api_set_url_record_settings, 0, FWX_API_METHOD_POST},
+    {"get_url_records", fwx_api_get_url_records, 0, FWX_API_METHOD_GET},
+    {"get_url_list", fwx_api_get_url_list, 0, FWX_API_METHOD_GET},
+    {"add_url_list", fwx_api_add_url_list, 0, FWX_API_METHOD_POST},
+    {"del_url_list", fwx_api_del_url_list, 0, FWX_API_METHOD_POST},
 
     {NULL, NULL, 0, FWX_API_METHOD_GET}
 };

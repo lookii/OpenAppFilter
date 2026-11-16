@@ -1,0 +1,70 @@
+name: Validate Sources
+
+# 轻量校验：不需要 SDK，每次改动秒级反馈，重点防止破坏已修复的功能。
+# 完整的 apk 编译见 build-apk.yml。
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: 源码完整性与语法校验
+    runs-on: ubuntu-22.04
+    steps:
+      - name: 检出源码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 关键标记自检
+        run: python3 scripts/check-sources.py
+
+      - name: JS 语法校验
+        run: |
+          ok=0; bad=0
+          for f in $(find luci-app-oaf/htdocs -name '*.js' ! -name '*.min.js'); do
+            if node --check "$f"; then ok=$((ok+1)); else bad=$((bad+1)); echo "FAIL $f"; fi
+          done
+          echo "JS 文件: 通过 $ok, 失败 $bad"
+          [ "$bad" -eq 0 ]
+
+      - name: HTML 内联脚本语法校验
+        # LuCI 的 <%=resource%> 模板标记与 <script src=...> 外链标签需特殊处理，
+        # 逻辑封装在 scripts/check-inline-js.py（本地可用同一脚本复现）
+        run: python3 scripts/check-inline-js.py
+
+      - name: Lua 语法校验
+        run: |
+          # LuCI 控制器/CBI 使用 Lua 5.1；luac5.1 不可用时降级跳过，不阻断构建
+          LUAC=""
+          for c in luac5.1 luac; do
+            if command -v "$c" >/dev/null 2>&1; then LUAC="$c"; break; fi
+          done
+          if [ -z "$LUAC" ]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq lua5.1 >/dev/null 2>&1 || true
+            for c in luac5.1 luac; do
+              if command -v "$c" >/dev/null 2>&1; then LUAC="$c"; break; fi
+            done
+          fi
+          if [ -z "$LUAC" ]; then
+            echo "luac 不可用，跳过 Lua 语法校验"
+          else
+            echo "使用 $LUAC"
+            bad=0
+            for f in $(find luci-app-oaf/luasrc -name '*.lua'); do
+              "$LUAC" -p "$f" || { echo "FAIL $f"; bad=$((bad+1)); }
+            done
+            echo "Lua 失败数: $bad"
+            [ "$bad" -eq 0 ]
+          fi

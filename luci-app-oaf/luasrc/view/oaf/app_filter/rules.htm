@@ -1,5 +1,6 @@
 <link rel="stylesheet" href="<%=resource%>/oaf/css/common.css">
 <script src="<%=resource%>/oaf/common.js"></script>
+<script src="<%=resource%>/oaf/oaf_pinyin.js"></script>
 <script src="<%=resource%>/oaf/jquery-3.7.1.min.js"></script>
 <script src="<%=resource%>/oaf/oaf_icon.js"></script>
 
@@ -107,19 +108,20 @@
     
     .more-time-btn {
         display: inline-block;
-        margin-left: 5px;
-        padding: 2px 6px;
-        background: #4d4d4d;
-        color: white;
-        border: none;
-        border-radius: 3px;
-        cursor: pointer;
+        margin-left: 4px;
+        padding: 1px 7px;
+        border: 1px solid var(--border-color-low, #e4e7ec);
+        border-radius: 6px;
+        background: var(--background-color-low, #f9fafb);
+        color: var(--text-color-high, #344054);
         font-size: 12px;
+        line-height: 18px;
+        cursor: pointer;
         vertical-align: middle;
     }
-    
+
     .more-time-btn:hover {
-        background: #898a8a;
+        background: var(--background-color-medium, #eaecf0);
     }
     
     .time-chart-inline {
@@ -728,11 +730,75 @@
     #add-rule-modal .form-group > div[style*="color: #999"] {
         color: var(--text-color-medium, #6b7280) !important;
     }
+
+    /* 指定用户多选控件（复用 common.css 的 .oaf-check-item） */
+    .oaf-user-check-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 6px;
+    }
+    .oaf-user-check-stat {
+        color: var(--text-color-medium, #6b7280);
+        font-size: 13px;
+        white-space: nowrap;
+    }
+    .oaf-user-check-list {
+        min-height: 110px;
+        max-height: 180px;
+        overflow-y: auto;
+        border: 1px solid var(--border-color-low, #d1d5db);
+        border-radius: 4px;
+        background: var(--background-color-low, #f5f5f5);
+    }
+    .oaf-user-check-item {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--border-color-low, #d1d5db);
+        background: var(--background-color-high, #fff);
+        color: var(--text-color-high, #1f2937);
+        cursor: pointer;
+    }
+    .oaf-user-check-item:last-child {
+        border-bottom: none;
+    }
+    .oaf-user-check-item:hover {
+        background: var(--background-color-medium, #eee);
+    }
+    .oaf-user-check-item .oaf-check-item {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 0;
+    }
+    .oaf-user-check-item .oaf-check-item > input[type="checkbox"] {
+        margin: 0 10px 0 0;
+        flex: 0 0 auto;
+    }
+    .oaf-user-check-item .oaf-check-item > label {
+        flex: 1;
+        min-width: 0;
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    [data-darkmode="true"] .oaf-user-check-item:hover {
+        background: var(--background-color-medium, rgba(255, 255, 255, 0.08));
+    }
+
 </style>
 
 <script type="text/javascript">//<![CDATA[
 $(document).ready(function() {
     var _NoRulesConfigured = '<%:No rules configured%>';
+    window.OAF_I18N_EVERYDAY = '<%:Every Day%>';
+    window.OAF_I18N_WORKDAY = '<%:Workdays%>';
+    window.OAF_I18N_WEEKEND = '<%:Weekend%>';
     var _Name = '<%:Name%>';
     var _Mode = '<%:Mode%>';
     var _TimeRules = '<%:Time Rules%>';
@@ -740,11 +806,31 @@ $(document).ready(function() {
     var _Status = '<%:Status%>';
     var _Actions = '<%:Actions%>';
     var _AllUsers = '<%:All Users%>';
-    var _SingleUser = '<%:Single User%>';
+    var _SelectedUsers = '<%:Selected Users%>';
     var _Enabled = '<%:Enabled%>';
     var _Disabled = '<%:Disabled%>';
     var _Edit = '<%:Edit%>';
     var _Delete = '<%:Delete%>';
+    var _Copy = '<%:Copy%>';
+    var _RuleEnabledToast = '<%:Rule enabled%>';
+    var _RuleDisabledToast = '<%:Rule disabled%>';
+    var _RuleCopiedToast = '<%:Rule copied and disabled by default%>';
+    var _FailedToCopyRule = '<%:Failed to copy rule%>';
+    var _FailedToToggleRule = '<%:Failed to change rule status%>';
+    var _TotalRules = '<%:Total %d rule(s)%>';
+    var _MatchedRules = '<%:Matched %d of %s rule(s)%>';
+    var _NoMatchingRules = '<%:No rule matches the current filter%>';
+    var _AllDevices = '<%:All Devices%>';
+    var _Online = '<%:Online%>';
+    var _Offline = '<%:Offline%>';
+    var _ShownOfDevices = '<%:Shown %d of %s device(s)%>';
+    var _NoMatchingDevices = '<%:No device matches the condition%>';
+    var _SelectAllCategory = '<%:Select all%>';
+    var _ClearCategory = '<%:Clear all%>';
+    var _MatchedApps = '<%:%d matched%>';
+    var _NoMatchingApps = '<%:No app matches the keyword%>';
+    var _SelectedN = '<%:%d selected%>';
+    var _ConfirmDeleteRuleTpl = '<%:Delete rule "%s"? It applies to %d device(s).%>';
     var _HoverToViewTimeChart = '<%:Hover to view time chart%>';
     var _AddNewRule = '<%:Add Rule%>';
     var _EditRule = '<%:Edit Rule%>';
@@ -785,14 +871,24 @@ $(document).ready(function() {
     var _Thu = '<%:Thu%>';
     var _Fri = '<%:Fri%>';
     var _Sat = '<%:Sat%>';
+    /* common.js 的星期折叠按 window._Xxx 读取，这里显式导出 */
+    window._Sun = _Sun;
+    window._Mon = _Mon;
+    window._Tue = _Tue;
+    window._Wed = _Wed;
+    window._Thu = _Thu;
+    window._Fri = _Fri;
+    window._Sat = _Sat;
     var _Time = '<%:Time%>';
     var _T = '<%:T%>';
     var _FilterRules = '<%:Filter Rules%>';
     var _AddRule = '<%:Add Rule%>';
     
     var allUsers = [];
+    var pendingEditUserMacs = null; // 编辑态待回放的用户 MAC（归一化后），用于异步加载完成后恢复勾选
     var classList = [];
     var rules = []; // 规则列表
+    var ruleFilter = { text: '', status: 'all' }; // P1-5 规则列表筛选状态
     var currentEditingRuleId = null; // 当前正在编辑的规则ID
     var classListLoaded = false; // 标记分类列表是否已加载
     var rulesLoaded = false; // 标记规则列表是否已加载
@@ -803,6 +899,26 @@ $(document).ready(function() {
         loadAllUsers();
         loadClassList();
         loadRules();
+        initRulesToolbar();
+        initAppSearch();
+        initUserSelectorSearch();
+    }
+
+    function initAppSearch() {
+        var $input = $('#app-search-input');
+        if (!$input.length) { return; }
+        $input.off('input.oafapp').on('input.oafapp', function() {
+            applyAppSearch();
+        });
+    }
+
+    function initRulesToolbar() {
+        if (typeof oafInitToolbar !== 'function') { return; }
+        oafInitToolbar('#app-rules-toolbar', function(st) {
+            ruleFilter.text = st.text || '';
+            ruleFilter.status = st.status || 'all';
+            renderRulesList();
+        });
     }
     
     function checkAndRenderRulesList() {
@@ -816,6 +932,10 @@ $(document).ready(function() {
             if (data && data.data && Array.isArray(data.data.list)) {
                 allUsers = data.data.list;
                 console.log('Loaded users:', allUsers.length);
+                // 用户列表异步到达时，若编辑弹窗正等待多用户回显，则重建并回放勾选
+                if ($('#user-selection-group').is(':visible') && $('#rule-user').is(':empty')) {
+                    loadUserOptions();
+                }
             }
         }).fail(function(xhr, status, error) {
             console.error('Failed to load users:', error);
@@ -985,12 +1105,157 @@ $(document).ready(function() {
         return categoryCount;
     }
     
+    function findRuleById(ruleId) {
+        for (var k = 0; k < rules.length; k++) {
+            if (String(rules[k].id) === String(ruleId)) {
+                return rules[k];
+            }
+        }
+        return null;
+    }
+
+    function toggleRuleEnabled(ruleId, $input) {
+        var want = $input.is(':checked') ? 1 : 0;
+        var $label = $input.closest('.oaf-rule-switch');
+        var revertTitle = want ? _Disabled : _Enabled;
+
+        function rollback(msg) {
+            $input.prop('checked', !want);
+            $label.attr('title', revertTitle);
+            if (typeof showCommonModal === 'function') {
+                showCommonModal(msg, 3000);
+            } else {
+                alert(msg);
+            }
+        }
+
+        $input.prop('disabled', true);
+        $.post("<%=url('admin/services/oaf/api/app_filter/update_filter_rule')%>",
+            { data: JSON.stringify({ id: parseInt(ruleId, 10), enabled: want }) },
+            function(data) {
+                if (data && data.code === 0) {
+                    var target = findRuleById(ruleId);
+                    if (target) { target.enabled = want; }
+                    $label.attr('title', want ? _Enabled : _Disabled);
+                    if (typeof showCommonModal === 'function') {
+                        showCommonModal(want ? _RuleEnabledToast : _RuleDisabledToast, 1500);
+                    }
+                } else {
+                    rollback(_FailedToToggleRule + ': ' + ((data && data.message) || _UnknownError));
+                }
+            }
+        ).fail(function() {
+            rollback(_FailedToToggleRule + ': ' + _NetworkError);
+        }).always(function() {
+            $input.prop('disabled', false);
+        });
+    }
+
+    function copyRule(ruleId) {
+        var src = findRuleById(ruleId);
+        if (!src) { return; }
+        if (rules.length >= 32) {
+            if (typeof showCommonModal === 'function') {
+                showCommonModal(_MaxRulesReached, 3000);
+            } else {
+                alert(_MaxRulesReached);
+            }
+            return;
+        }
+
+        var timeRules = (src.time_rules || []).map(function(t) {
+            return {
+                weekdays: (t.weekdays || []).slice(),
+                start_time: t.start_time,
+                end_time: t.end_time
+            };
+        });
+
+        var payload = {
+            name: String(src.name || '') + '-copy',
+            mode: parseInt(src.mode, 10) || 1,
+            user_mac: src.user_mac || '',
+            user_macs: Array.isArray(src.user_macs) ? src.user_macs.slice() : [],
+            user_name: src.user_name || '',
+            time_rules: timeRules,
+            app_ids: (src.app_ids || []).slice(),
+            enabled: 0,
+            filter_quic: src.filter_quic ? 1 : 0
+        };
+
+        $.post("<%=url('admin/services/oaf/api/app_filter/add_filter_rule')%>",
+            { data: JSON.stringify(payload) },
+            function(data) {
+                if (data && data.code === 0) {
+                    loadRules();
+                    if (typeof showCommonModal === 'function') {
+                        showCommonModal(_RuleCopiedToast, 2000);
+                    } else {
+                        alert(_RuleCopiedToast);
+                    }
+                } else {
+                    var msg = _FailedToCopyRule + ': ' + ((data && data.message) || _UnknownError);
+                    if (typeof showCommonModal === 'function') {
+                        showCommonModal(msg, 3000);
+                    } else {
+                        alert(msg);
+                    }
+                }
+            }
+        ).fail(function() {
+            var msg = _FailedToCopyRule + ': ' + _NetworkError;
+            if (typeof showCommonModal === 'function') {
+                showCommonModal(msg, 3000);
+            } else {
+                alert(msg);
+            }
+        });
+    }
+
     function renderRulesList() {
         var $container = $('#rules-list-container');
         $container.empty();
-        
+
+        var q = String(ruleFilter.text || '').toLowerCase();
+        var viewRules = rules.filter(function(rule) {
+            var enVal = rule.enabled;
+            if (typeof enVal === 'boolean') { enVal = enVal ? 1 : 0; }
+            var en = (enVal === 1 || enVal === true);
+            if (ruleFilter.status === 'enabled' && !en) { return false; }
+            if (ruleFilter.status === 'disabled' && en) { return false; }
+            if (!q) { return true; }
+            var hay = [rule.name || '', rule.user_name || '', rule.user_mac || ''].join(' ').toLowerCase();
+            if (hay.indexOf(q) >= 0) { return true; }
+            var cats = getAppCategoriesByRule(rule);
+            for (var cn in cats) {
+                if (cats.hasOwnProperty(cn) && String(cn).toLowerCase().indexOf(q) >= 0) {
+                    return true;
+                }
+            }
+            return false;
+        });
+
+        var $hint = $('#app-rules-count-hint');
+        if ($hint.length) {
+            $hint.text(viewRules.length === rules.length
+                ? _TotalRules.replace('%d', rules.length)
+                : _MatchedRules.replace('%d', viewRules.length).replace('%s', rules.length));
+        }
+
         if (rules.length === 0) {
-            $container.html('<div class="empty-state">' + _NoRulesConfigured + '</div>');
+            $container.html('<div class="empty-state oaf-empty-state">' +
+                '<span class="oaf-empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 14h6"/></svg></span>' +
+                '<span class="oaf-empty-text">' + _NoRulesConfigured + '</span>' +
+                '<button type="button" class="oaf-empty-action" onclick="document.getElementById(\'btn-add-rule\').click()">' + _AddNewRule + '</button>' +
+                '</div>');
+            return;
+        }
+
+        if (viewRules.length === 0) {
+            $container.html('<div class="empty-state oaf-empty-state">' +
+                '<span class="oaf-empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span>' +
+                '<span class="oaf-empty-text">' + _NoMatchingRules + '</span>' +
+                '</div>');
             return;
         }
         
@@ -1007,7 +1272,7 @@ $(document).ready(function() {
         $headerRow.append($('<th>').text(_Actions));
         $thead.append($headerRow);
         
-        rules.forEach(function(rule) {
+        viewRules.forEach(function(rule) {
             if (!rule.time_rules || !Array.isArray(rule.time_rules)) {
                 rule.time_rules = [];
             }
@@ -1019,8 +1284,30 @@ $(document).ready(function() {
             
             $row.append($('<td>').text(rule.name));
             
-            var modeText = rule.mode === 1 ? _AllUsers : _SingleUser + ': ' + (rule.user_name || rule.user_mac);
-            $row.append($('<td>').text(modeText));
+            var modeText;
+            var modeTitle = '';
+            if (rule.mode === 1) {
+                modeText = _AllUsers;
+            } else {
+                var _mc = (rule.user_macs && rule.user_macs.length) ? rule.user_macs.length : (rule.user_mac ? 1 : 0);
+                var fullNames = (rule.user_name || rule.user_mac || '');
+                var count = _mc;
+                var namePart = fullNames.length > 24 ? fullNames.substring(0, 24) + '…' : fullNames;
+                var countSuffix = (count > 1 ? ' (' + count + ')' : '');
+                modeText = _SelectedUsers + ': ' + namePart + countSuffix;
+                modeTitle = _SelectedUsers + ': ' + fullNames + countSuffix;
+            }
+            var $modeCell = $('<td>').text(modeText);
+            $modeCell.attr('title', modeTitle || modeText);
+            $modeCell.css({
+                'cursor': 'help',
+                'max-width': '220px',
+                'overflow': 'hidden',
+                'text-overflow': 'ellipsis',
+                'white-space': 'nowrap'
+            });
+            $row.append($modeCell);
+
             
 
             var $timeCell = $('<td>');
@@ -1069,14 +1356,31 @@ $(document).ready(function() {
             }
             var isEnabled = (enabledValue === 1 || enabledValue === true);
             var statusText = isEnabled ? _Enabled : _Disabled;
-            $row.append($('<td>').text(statusText));
-            
+            var $statusCell = $('<td>').addClass('rule-status-cell');
+            var $switch = $('<label>').addClass('oaf-rule-switch').attr('title', statusText);
+            var $switchInput = $('<input>').attr('type', 'checkbox')
+                .prop('checked', isEnabled)
+                .attr('data-rule-id', rule.id)
+                .attr('aria-label', statusText);
+            $switchInput.on('change', function() {
+                toggleRuleEnabled(rule.id, $(this));
+            });
+            $switch.append($switchInput).append($('<span>').addClass('oaf-switch-track'));
+            $statusCell.append($switch);
+            $row.append($statusCell);
+
             var $actions = $('<td>');
             var $actionsDiv = $('<div>').addClass('rule-actions');
             $actionsDiv.append($('<button>').attr('type', 'button').addClass('btn-edit').text(_Edit).data('rule-id', rule.id).on('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
                 editRule(rule.id);
+                return false;
+            }));
+            $actionsDiv.append($('<button>').attr('type', 'button').addClass('btn-copy').text(_Copy).data('rule-id', rule.id).on('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                copyRule(rule.id);
                 return false;
             }));
             $actionsDiv.append($('<button>').attr('type', 'button').addClass('btn-delete').text(_Delete).data('rule-id', rule.id).on('click', function(e) {
@@ -1496,7 +1800,9 @@ $(document).ready(function() {
         onModeChange();
         $('#rule-filter-quic').prop('checked', parseInt(rule.filter_quic || 0, 10) === 1);
         if (rule.mode === 2) {
-            $('#rule-user').val(rule.user_mac);
+            var editMacs = (rule.user_macs && rule.user_macs.length)
+                ? rule.user_macs : (rule.user_mac ? [rule.user_mac] : []);
+            setSelectedUserMacs(editMacs);
         }
         
         $('#add-rule-modal').addClass('show').show();
@@ -1540,7 +1846,25 @@ $(document).ready(function() {
     }
     
     function deleteRule(ruleId) {
-        if (!confirm(_ConfirmDeleteRule)) {
+        var target = null;
+        for (var k = 0; k < rules.length; k++) {
+            if (String(rules[k].id) === String(ruleId)) { target = rules[k]; break; }
+        }
+        var confirmMsg = _ConfirmDeleteRule;
+        if (target) {
+            var devCount = 0;
+            if (parseInt(target.mode, 10) === 1) {
+                devCount = 0;
+            } else if (Array.isArray(target.user_macs) && target.user_macs.length) {
+                devCount = target.user_macs.length;
+            } else if (target.user_mac) {
+                devCount = 1;
+            }
+            confirmMsg = String(_ConfirmDeleteRuleTpl)
+                .replace('%s', target.name || '')
+                .replace('%d', devCount === 0 ? _AllDevices : devCount);
+        }
+        if (!confirm(confirmMsg)) {
             return;
         }
         
@@ -1581,21 +1905,55 @@ $(document).ready(function() {
         }
     }
     
+    function getSelectedUserMacs() {
+        return $('#rule-user input[type="checkbox"]:checked').map(function() {
+            return this.value;
+        }).get();
+    }
+
+    // 统一 MAC 归一化：小写，去掉 '-'、'.'、':'，用于勾选比较
+    function normMac(v) {
+        return String(v || '').toLowerCase().replace(/[-.]/g, '').replace(/:/g, '');
+    }
+
+    // 只做勾选 + 统计，不触发任何加载，避免 loadUserOptions 回放时递归
+    function applySelection() {
+        var wanted = {};
+        (pendingEditUserMacs || []).forEach(function(mac) {
+            var key = normMac(mac);
+            if (key) { wanted[key] = true; }
+        });
+        $('#rule-user input[type="checkbox"]').each(function() {
+            this.checked = !!wanted[normMac(this.value)];
+        });
+        updateUserSelectionStats();
+    }
+
+    function setSelectedUserMacs(macs) {
+        // 归一化后保存，供 loadUserOptions 在异步重建 checkbox 后回放
+        pendingEditUserMacs = (macs || []).map(function(mac) { return normMac(mac); });
+        applySelection();
+    }
+
+    function updateUserSelectionStats() {
+        var $boxes = $('#rule-user input[type="checkbox"]');
+        $('#rule-user-stats').text(_Selected + ': ' + $boxes.filter(':checked').length + ' / ' + $boxes.length);
+    }
+
     function loadUserOptions() {
-        var $select = $('#rule-user');
-        $select.empty();
-        $select.append($('<option>').val('').text(_SelectUser));
-        
+        var $list = $('#rule-user').empty();
+
         if (!allUsers || allUsers.length === 0) {
             console.warn('No users available, reloading...');
             loadAllUsers();
+            updateUserSelectionStats();
             return;
         }
-        
-        allUsers.forEach(function(user) {
-            var displayName = user.mac || '';
+
+        allUsers.forEach(function(user, index) {
+            var mac = user.mac || '';
             var extraInfo = '';
-            
+
             if (user.nickname && user.nickname.trim() !== '') {
                 extraInfo = user.nickname;
             } else if (user.hostname && user.hostname.trim() !== '' && user.hostname !== '*') {
@@ -1603,15 +1961,96 @@ $(document).ready(function() {
             } else if (user.ip && user.ip.trim() !== '') {
                 extraInfo = user.ip;
             }
-            
-            if (extraInfo) {
-                displayName = displayName + ' (' + extraInfo + ')';
-            }
-            
-            $select.append($('<option>').val(user.mac).text(displayName));
+
+            var displayText = extraInfo ? mac + ' (' + extraInfo + ')' : mac;
+            var checkId = 'rule-user-chk-' + index;
+            var $item = $('<div class="oaf-user-check-item"></div>');
+            var $checkWrap = $('<div class="oaf-check-item"></div>');
+            var $checkbox = $('<input type="checkbox">')
+                .attr('id', checkId)
+                .val(mac)
+                .on('change', updateUserSelectionStats);
+            var $label = $('<label></label>').attr('for', checkId).text(displayText);
+
+            $checkWrap.append($checkbox).append($label);
+            $item.append($checkWrap);
+
+            /* P1-10：在线标记 + IP，供「只看在线」与搜索识别 */
+            var isOnline = parseInt(user.online, 10) === 1;
+            var $meta = $('<span>').addClass('oaf-user-option-meta');
+            $meta.append($('<span>').addClass('oaf-online-dot' + (isOnline ? ' is-online' : '')));
+            $meta.append($('<span>').text(isOnline ? _Online : _Offline));
+            if (user.ip) { $meta.append($('<span>').text(user.ip)); }
+            $item.append($meta);
+            $item.attr('data-mac', mac)
+                .attr('data-online', isOnline ? '1' : '0')
+                .attr('data-search', [mac, user.nickname || '', user.hostname || '', user.ip || ''].join(' ').toLowerCase())
+                .attr('data-pinyin', (typeof oafPinyinInitials === 'function'
+                    ? oafPinyinInitials([user.nickname || '', user.hostname || ''].join(' ')) : ''));
+            $item.on('click', function(event) {
+                if (!$(event.target).closest('.oaf-check-item').length) {
+                    $checkbox.prop('checked', !$checkbox.prop('checked')).trigger('change');
+                }
+            });
+            $list.append($item);
         });
+
+        applyUserFilter();
+
+        // checkbox 重建完成后回放编辑态选中项（不触发 loadUserOptions，避免递归）
+        if (pendingEditUserMacs !== null) {
+            applySelection();
+        } else {
+            updateUserSelectionStats();
+        }
     }
     
+    /* P1-10：设备多选器搜索 + 只看在线 */
+    function applyUserFilter() {
+        var $list = $('#rule-user');
+        if (!$list.length) { return; }
+        var q = String($('#rule-user-search-input').val() || '').trim().toLowerCase();
+        var onlyOnline = $('#rule-user-only-online').is(':checked');
+        var total = 0;
+        var shown = 0;
+
+        $list.find('.oaf-user-check-item').each(function() {
+            var $item = $(this);
+            total++;
+            var ok = !onlyOnline || $item.attr('data-online') === '1';
+            if (ok && q) {
+                var hay = $item.attr('data-search') || '';
+                var ini = $item.attr('data-pinyin') || '';
+                ok = hay.indexOf(q) >= 0 || ini.indexOf(q) >= 0;
+            }
+            $item.toggle(ok);
+            if (ok) { shown++; }
+        });
+
+        var $hint = $('#rule-user-search-hint');
+        if ($hint.length) {
+            $hint.text(shown === total ? '' : _ShownOfDevices.replace('%d', shown).replace('%s', total));
+        }
+
+        var $empty = $list.find('.oaf-option-empty');
+        if (total > 0 && shown === 0) {
+            if (!$empty.length) {
+                $empty = $('<div>').addClass('oaf-option-empty').text(_NoMatchingDevices);
+                $list.append($empty);
+            }
+            $empty.show();
+        } else if ($empty.length) {
+            $empty.hide();
+        }
+    }
+
+    function initUserSelectorSearch() {
+        var $input = $('#rule-user-search-input');
+        if (!$input.length) { return; }
+        $input.off('input.oafuser').on('input.oafuser', applyUserFilter);
+        $('#rule-user-only-online').off('change.oafuser').on('change.oafuser', applyUserFilter);
+    }
+
     function addTimeRule(timeRule) {
         var currentTimeRulesCount = $('#time-rules-container .time-rule-item').length;
         if (currentTimeRulesCount >= 16) {
@@ -1735,6 +2174,12 @@ $(document).ready(function() {
             var $selectAllLabel = $('<label>').text(_SelectAll);
             $selectAllContainer.append($selectAllCheckbox);
             $selectAllContainer.append($selectAllLabel);
+
+            var $categoryActions = $('<span>').addClass('oaf-app-category-actions');
+            var $btnSelectCategory = $('<button>').attr('type', 'button').text(_SelectAllCategory);
+            var $btnClearCategory = $('<button>').attr('type', 'button').text(_ClearCategory);
+            $categoryActions.append($btnSelectCategory).append($btnClearCategory);
+            $headerLeft.append($categoryActions);
             
             $header.on('click', function(e) {
                 if ($(e.target).is('input[type="checkbox"]') || $(e.target).closest('.category-select-all-container').length > 0) {
@@ -1782,7 +2227,9 @@ $(document).ready(function() {
                 var appName = parts[1] || 'Unknown';
                 var hasIcon = parts[2] !== '0';
                 
-                var $appItem = $('<div>').addClass('app-item');
+                var $appItem = $('<div>').addClass('app-item')
+                    .attr('data-name', appName)
+                    .attr('data-pinyin', (typeof oafPinyinInitials === 'function' ? oafPinyinInitials(appName) : ''));
                 var $checkbox = $('<input>').attr({
                     type: 'checkbox',
                     value: appId,
@@ -1834,9 +2281,94 @@ $(document).ready(function() {
             $categorySection.append($appItems);
             $container.append($categorySection);
         });
+
+        bindCategoryActionButtons($container);
+        applyAppSearch();
+        updateAppSelectedCount();
+    }
+
+    function bindCategoryActionButtons($container) {
+        $container.find('.oaf-app-category-actions button').off('click.oafcat').on('click.oafcat', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var $btn = $(this);
+            var selectAll = $btn.index() === 0;
+            var $section = $btn.closest('.category-section');
+            $section.find('.app-items input[type="checkbox"]').each(function() {
+                $(this).prop('checked', selectAll);
+            });
+            updateCategorySelection($section.data('category-name') || '', $section);
+        });
+    }
+
+    /* P1-7：跨分类搜索，命中名称子串或拼音首字母；无命中则给出空提示 */
+    function applyAppSearch() {
+        var $input = $('#app-search-input');
+        if (!$input.length) { return; }
+        var q = String($input.val() || '').trim();
+        var hits = 0;
+
+        $('#app-selection-container .category-section').each(function() {
+            var $section = $(this);
+            var visible = 0;
+            $section.find('.app-item').each(function() {
+                var $item = $(this);
+                var name = $item.attr('data-name') || '';
+                var hit = !q || (typeof oafPinyinMatch === 'function'
+                    ? oafPinyinMatch(name, q)
+                    : String(name).toLowerCase().indexOf(q.toLowerCase()) >= 0);
+                $item.toggle(hit);
+                if (hit) { visible++; }
+            });
+            hits += visible;
+            $section.toggle(visible > 0);
+
+            var $items = $section.find('.app-items');
+            var $selectAll = $section.next('.category-select-all-container');
+            var $arrow = $section.find('.category-header .arrow');
+            if (q) {
+                if (visible > 0) {
+                    $items.stop(true, true).show();
+                    $selectAll.stop(true, true).show();
+                    $arrow.addClass('expanded');
+                }
+            } else {
+                $items.stop(true, true).hide();
+                $selectAll.stop(true, true).hide();
+                $arrow.removeClass('expanded');
+            }
+        });
+
+        var $hint = $('#app-search-hint');
+        if ($hint.length) {
+            $hint.text(q ? _MatchedApps.replace('%d', hits) : '');
+        }
+
+        var $empty = $('#app-search-empty');
+        if (q && hits === 0) {
+            if (!$empty.length) {
+                $empty = $('<div>').attr('id', 'app-search-empty').addClass('oaf-empty-state oaf-option-empty')
+                    .text(_NoMatchingApps);
+                $('#app-selection-container').append($empty);
+            }
+            $empty.show();
+        } else if ($empty.length) {
+            $empty.hide();
+        }
+    }
+
+    function updateAppSelectedCount() {
+        var n = $('#app-selection-container input[type="checkbox"]:checked').length;
+        var $count = $('#app-selected-count');
+        if ($count.length) {
+            $count.text(n > 0 ? '（' + _SelectedN.replace('%d', n) + '）' : '');
+        }
     }
     
     function updateCategorySelection(categoryName, $categorySection) {
+        if ($categorySection && $categorySection.length && !$categorySection.attr('data-category-name')) {
+            $categorySection.attr('data-category-name', categoryName || '');
+        }
         var $appItems = $categorySection.find('.app-items');
         var $checkboxes = $appItems.find('input[type="checkbox"]');
         var totalCount = $checkboxes.length;
@@ -1853,8 +2385,11 @@ $(document).ready(function() {
         } else {
             $selectedCount.text(_Selected + ': ' + selectedCount);
         }
+
+        /* P1-7：分类内勾选变化后，同步弹窗标题旁的已选总数 */
+        updateAppSelectedCount();
     }
-    
+
     function saveRule(e) {
         if (e) {
             e.preventDefault();
@@ -1872,24 +2407,30 @@ $(document).ready(function() {
         }
         
         var mode = parseInt($('input[name="rule-mode"]:checked').val());
+        var userMacs = [];
         var userMac = '';
         var userName = '';
         
         if (mode === 2) {
-            userMac = $('#rule-user').val();
-            if (!userMac) {
+            var selectedUsers = getSelectedUserMacs();
+            userMacs = (Array.isArray(selectedUsers) ? selectedUsers : [selectedUsers])
+                .filter(function(m) { return m && m !== ''; });
+            if (userMacs.length === 0) {
                 if (typeof showCommonModal === 'function') {
                     showCommonModal(_PleaseSelectUser, 1500);
                 } else {
                     alert(_PleaseSelectUser);
                 }
-                $('#rule-user').focus();
+                $('#rule-user input[type="checkbox"]').first().trigger('focus');
                 return false;
             }
-            var user = allUsers.find(function(u) { return u.mac === userMac; });
-            if (user) {
-                userName = user.nickname || user.hostname || user.mac;
-            }
+            userMac = userMacs[0];
+            var userNames = [];
+            userMacs.forEach(function(mac) {
+                var u = allUsers.find(function(x) { return x.mac === mac; });
+                userNames.push(u ? (u.nickname || u.hostname || u.mac) : mac);
+            });
+            userName = userNames.join(', ');
         }
         
         var timeRules = [];
@@ -1992,6 +2533,7 @@ $(document).ready(function() {
             name: ruleName,
             mode: mode,
             user_mac: userMac,
+            user_macs: userMacs,
             user_name: userName,
             time_rules: timeRules,
             app_ids: compressAppIds(appIds),
@@ -2087,12 +2629,8 @@ $(document).ready(function() {
         $('input[name="rule-mode"][value="1"]').prop('checked', true);
         $('input[name="rule-mode"][value="2"]').prop('checked', false);
         
-        var $userSelect = $('#rule-user');
-        if ($userSelect.length > 0) {
-            $userSelect.empty();
-            $userSelect.append($('<option>').val('').text(_SelectUser));
-            $userSelect.val('');
-        }
+        setSelectedUserMacs([]);
+        pendingEditUserMacs = null; // 新建：清除上一次编辑残留的待回放选中态
         
         $('#time-rules-container').empty();
         $('#app-selection-container').empty();
@@ -2145,7 +2683,8 @@ $(document).ready(function() {
             if (classList.length === 0) {
                 loadClassList();
             var timerId = setTimeout(function() {
-                if (!modal || modal.style.display === 'none') {
+                var $modalEl = $('#add-rule-modal');
+                if (!$modalEl.hasClass('show') || !$modalEl.is(':visible')) {
                     return;
                 }
                     renderAppSelection([]);
@@ -2158,6 +2697,7 @@ $(document).ready(function() {
     
     function closeAddRuleModal() {
         console.log('closeAddRuleModal called');
+        pendingEditUserMacs = null; // 编辑结束（保存成功或关闭弹窗）清除待回放选中态
         $('#add-rule-modal').removeClass('show');
         
         modalTimerIds.length = 0;
@@ -2183,6 +2723,16 @@ $(document).ready(function() {
     window.closeAddRuleModal = closeAddRuleModal;
     
     console.log('btn-add-rule initialized');
+
+
+    $('#btn-user-select-all').on('click', function() {
+        $('#rule-user input[type="checkbox"]').prop('checked', true);
+        updateUserSelectionStats();
+    });
+    $('#btn-user-clear').on('click', function() {
+        $('#rule-user input[type="checkbox"]').prop('checked', false);
+        updateUserSelectionStats();
+    });
     $('#btn-add-rule').on('click', function(e) {
         console.log('btn-add-rule clicked');
         e.preventDefault();
@@ -2214,25 +2764,41 @@ $(document).ready(function() {
 });
 //]]></script>
 
-<div class="cbi-section cbi-tblsection">
+<div class="cbi-section cbi-tblsection" id="app_filter_rules_page">
     <div class="rules-toolbar">
         <h3><%:Filter Rules%></h3>
+        <div class="app-filter-tip">
+            <span class="app-filter-tip-icon" aria-hidden="true">
+                <svg viewBox="0 0 16 16" fill="currentColor" focusable="false">
+                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                    <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/>
+                </svg>
+            </span>
+            <span class="app-filter-tip-text">
+                <%:Mobile App Management%>
+                <a href="http://www.openappfilter.com" target="_blank" rel="noopener noreferrer"><%:Go to download%></a>
+            </span>
+        </div>
         <button type="button" id="btn-add-rule" class="btn-primary"><%:Add Rule%></button>
     </div>
 
-    <div class="app-filter-tip">
-        <span class="app-filter-tip-icon" aria-hidden="true">
-            <svg viewBox="0 0 16 16" fill="currentColor" focusable="false">
-                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
-                <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/>
-            </svg>
-        </span>
-        <span class="app-filter-tip-text">
-            <%:OAF already supports mobile app management. Mobile management is more convenient.%>
-            <a href="http://www.openappfilter.com" target="_blank" rel="noopener noreferrer"><%:Go to download%></a>
-        </span>
+    <div class="oaf-toolbar" id="app-rules-toolbar" data-filter-title="<%:Filter%>" data-reset-text="<%:Reset%>" data-apply-text="<%:Apply%>">
+        <div class="oaf-toolbar-search">
+            <input type="search" id="app-rules-search" placeholder="<%:Search rule, device or app%>" autocomplete="off">
+        </div>
+        <div class="oaf-toolbar-filters">
+            <select data-filter="status" data-default="all" data-label="<%:Status%>" aria-label="<%:Status%>">
+                <option value="all"><%:All Status%></option>
+                <option value="enabled"><%:Enabled%></option>
+                <option value="disabled"><%:Disabled%></option>
+            </select>
+        </div>
+        <button type="button" class="oaf-toolbar-btn-filter">
+            <span><%:Filter%></span><span class="oaf-filter-count">0</span>
+        </button>
+        <span class="oaf-toolbar-hint" id="app-rules-count-hint"></span>
     </div>
-    
+
     <div id="rules-list-container" class="rules-list">
     </div>
 </div>
@@ -2273,16 +2839,26 @@ $(document).ready(function() {
                                 </div>
                                 <div class="radio-option">
                                     <input type="radio" id="mode-single" name="rule-mode" value="2">
-                                    <label for="mode-single"><%:Single User%></label>
+                                    <label for="mode-single"><%:Selected Users%></label>
                                 </div>
                             </div>
                         </div>
                         
                         <div class="form-group" id="user-selection-group" style="display: none;">
-                            <label for="rule-user"><%:Select User%> *</label>
-                            <select id="rule-user" name="rule-user">
-                                <option value=""><%:Select User%></option>
-                            </select>
+                            <label><%:Select Users%> *</label>
+                            <div class="oaf-user-check-toolbar">
+                                <div>
+                                    <button type="button" class="btn" id="btn-user-select-all"><%:Select All%></button>
+                                    <button type="button" class="btn" id="btn-user-clear"><%:Clear%></button>
+                                </div>
+                                <span id="rule-user-stats" class="oaf-user-check-stat"><%:Selected%>: 0 / 0</span>
+                            </div>
+                            <div class="oaf-selector-search" id="rule-user-search">
+                                <input type="search" id="rule-user-search-input" placeholder="<%:Search device, MAC or IP%>" autocomplete="off">
+                                <label class="oaf-selector-only-online"><input type="checkbox" id="rule-user-only-online"><%:Online only%></label>
+                                <span class="oaf-selector-count" id="rule-user-search-hint"></span>
+                            </div>
+                            <div id="rule-user" class="oaf-user-check-list"></div>
                         </div>
                         
                         <div class="form-group">
@@ -2293,12 +2869,16 @@ $(document).ready(function() {
                         </div>
                         
                         <div class="form-group">
-                            <label><%:Select Apps%> *</label>
+                            <label><%:Select Apps%> *<span class="oaf-modal-title-count" id="app-selected-count"></span></label>
+                            <div class="oaf-selector-search" id="app-selector-search">
+                                <input type="search" id="app-search-input" placeholder="<%:Search app name or pinyin initials%>" autocomplete="off">
+                                <span class="oaf-selector-count" id="app-search-hint"></span>
+                            </div>
                             <div id="app-selection-container" class="app-selection-container">
                             </div>
                         </div>
                         
-                        <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+                        <div class="modal-actions" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
                             <button type="button" id="btn-cancel-rule" class="btn-secondary"><%:Cancel%></button>
                             <button type="button" id="btn-save-rule" class="btn-primary"><%:Save%></button>
                         </div>

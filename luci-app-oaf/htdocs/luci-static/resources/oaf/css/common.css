@@ -101,7 +101,7 @@ input:checked + .slider:before {
 }
 
 .form-desc {
-    color: #6b7280;
+    color: #475467;
     font-size: 13px;
     margin-bottom: 12px;
 }
@@ -256,7 +256,7 @@ input:checked + .slider:before {
 .form-label { width: 140px; font-weight: 500; color: inherit; }
 .form-row input { width: 360px; max-width: 100%; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 4px; background: inherit; color: inherit; }
 .form-row select { width: 360px; max-width: 100%; }
-.form-text-row { margin-bottom: 10px; font-size: 13px; color: #6b7280; }
+.form-text-row { margin-bottom: 10px; font-size: 13px; color: #475467; }
 .input-short { width: 200px !important; max-width: 100%; }
 
 
@@ -266,4 +266,1801 @@ input:checked + .slider:before {
 .section-header { font-weight: 600; margin: 12px 0 6px; color: inherit; }
 .row-inline { display: flex; gap: 10px; }
 .row-inline .form-row { flex: 1; }
-.status-tip { margin-top: 8px; font-size: 13px; color: #6b7280; }
+.status-tip { margin-top: 8px; font-size: 13px; color: #475467; }
+
+/* ==========================================================================
+   OAF 界面改版（施工单 P0-1 ~ P0-6）
+   本文件在 <head> 引入，页面自带 <style> 在 <body> 之后，纯 class 选择器
+   权重相同会被压掉，因此覆盖规则统一带页面级 ID 前缀或 !important。
+   断点全篇统一 768px，不引入 480/600/640 第二档。
+   ========================================================================== */
+
+/* ---- 页签：桌面下划线式（顶部 9 页签与各页内层页签共用一套规则） ---- */
+.tab-list {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 2px;
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 0 0 14px !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--border-color-low, #eaecf0) !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+.tab-list > .tab-item {
+    flex: 0 0 auto;
+    padding: 8px 14px !important;
+    margin: 0 0 -1px 0 !important;
+    border: 0 !important;
+    border-bottom: 2px solid transparent !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: var(--text-color-medium, #475467) !important;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.5;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.tab-list > .tab-item:hover { color: var(--primary-color, #5e72e4) !important; }
+.tab-list > .tab-item.active {
+    color: var(--primary-color, #2b3ac9) !important;
+    font-weight: 600;
+    border-bottom-color: var(--primary-color, #5e72e4) !important;
+    background: transparent !important;
+}
+
+/* ---- 桌面：规则表 / 记录表 / 基本信息表统一容器 ---- */
+#rules-list-container table.common-table,
+.oaf-whitelist-table,
+#online-record-table,
+#history-record-table,
+#tab-user-info .user-basic-info-table,
+#visit_list_table,
+.url-records-table,
+#tab-url-lists table,
+#tab-behavior-rules table {
+    border-collapse: separate !important;
+    border-spacing: 0;
+    border: 1px solid var(--border-color-low, #eaecf0);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--background-color-high, #fff);
+}
+#rules-list-container table.common-table th,
+.oaf-whitelist-table th,
+#online-record-table th, #history-record-table th,
+#tab-user-info .user-basic-info-table th,
+#visit_list_table tr.table-titles th,
+.url-records-table tr.table-titles th,
+#tab-url-lists table th,
+#tab-behavior-rules table th {
+    padding: 10px 14px !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--border-color-low, #eaecf0) !important;
+    background: var(--background-color-low, #f9fafb) !important;
+    color: var(--text-color-medium, #475467) !important;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: left !important;
+    white-space: nowrap;
+}
+#rules-list-container table.common-table td,
+.oaf-whitelist-table td,
+#online-record-table td, #history-record-table td,
+#tab-user-info .user-basic-info-table td,
+#visit_list_table td,
+.url-records-table td,
+#tab-url-lists table td,
+#tab-behavior-rules table td {
+    padding: 12px 14px !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--border-color-low, #f2f4f7) !important;
+    color: var(--text-color-high, #1d2939);
+    font-size: 13px;
+    vertical-align: middle;
+}
+#rules-list-container table.common-table tr:last-child td,
+.oaf-whitelist-table tr:last-child td,
+#visit_list_table tr:last-child td,
+.url-records-table tr:last-child td { border-bottom: 0 !important; }
+#rules-list-container table.common-table tbody tr:hover td,
+.oaf-whitelist-table tbody tr:hover td,
+#online-record-table tbody tr:hover td,
+#history-record-table tbody tr:hover td { background: var(--background-color-low, #fcfcfd) !important; }
+#rules-list-container table.common-table td:first-child,
+.oaf-whitelist-table td:first-child { font-weight: 600; color: var(--text-color-high, #101828); }
+
+/* 列宽按页分别写：应用过滤 6 列、上网控制 5 列，映射错会落到操作列 */
+#app_filter_rules_page .common-table th:nth-child(1),
+#app_filter_rules_page .common-table td:nth-child(1) { width: 180px; }
+#app_filter_rules_page .common-table th:nth-child(4),
+#app_filter_rules_page .common-table td:nth-child(4) { width: 26%; }
+#mac_filter_rules_page .common-table th:nth-child(1),
+#mac_filter_rules_page .common-table td:nth-child(1) { width: 150px; }
+#mac_filter_rules_page .common-table th:nth-child(3),
+#mac_filter_rules_page .common-table td:nth-child(3) { width: 230px; }
+#mac_filter_rules_page .common-table th:nth-child(4),
+#mac_filter_rules_page .common-table td:nth-child(4) { width: 96px; }
+#mac_filter_rules_page .common-table th:nth-child(5),
+#mac_filter_rules_page .common-table td:nth-child(5) { width: 160px; }
+.oaf-whitelist-table th:nth-child(1), .oaf-whitelist-table td:nth-child(1) { width: 64px !important; color: var(--text-color-medium, #4b5563) !important; }
+.oaf-whitelist-table th:last-child, .oaf-whitelist-table td:last-child { width: 110px !important; }
+
+/* 强制覆盖主题 cascade.css 的 .cbi-tblsection{overflow-x:scroll}：
+   移动端白名单整页禁止横向拖动（改为 overflow-x:hidden），避免手指一划整页
+   左右移动；页签自身的换行/滚动由 .oaf-whitelist-tabs 单独处理，互不影响。
+   用 id 选择器（特异性高于主题单类选择器），不改动主题文件。 */
+#oafWhitelistSection { overflow-x: hidden !important; }
+
+
+/* 应用记录：固定布局、单行省略、数字等宽；主机名列 11% -> 13% */
+#online-record-table, #history-record-table { table-layout: fixed; }
+#online-record-table td, #history-record-table td,
+#user_status_table td, #tab-user-info .user-basic-info-table td { font-variant-numeric: tabular-nums; }
+#online-record-table td, #history-record-table td {
+    white-space: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+/* 状态列只改字色，不加徽标/圆点，避免文字与表头不对齐 */
+#online-record-table .oaf-status-online, #history-record-table .oaf-status-online { color: #067647; font-weight: 500; }
+#online-record-table .oaf-status-offline, #history-record-table .oaf-status-offline { color: var(--text-color-medium, #4b5563); font-weight: 500; }
+#online-record-table .oaf-status-filtered, #history-record-table .oaf-status-filtered { color: #b42318; font-weight: 500; }
+
+/* ---- 紧凑 chip（时间规则 / 应用 / 模式分段） ---- */
+.oaf-chip {
+    display: inline-block;
+    max-width: 100%;
+    padding: 2px 8px;
+    border: 1px solid var(--border-color-low, #e4e7ec);
+    border-radius: 6px;
+    background: var(--background-color-low, #f9fafb);
+    color: var(--text-color-high, #344054);
+    font-size: 12px;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+}
+.oaf-chip + .oaf-chip { margin-left: 4px; }
+.oaf-chip-more { color: var(--primary-color, #3538cd); }
+.oaf-mode-source { display: inline-block; margin-right: 6px; padding: 1px 6px; border-radius: 4px; background: var(--background-color-low, #f2f4f7); color: #475467; font-size: 12px; }
+.oaf-mode-users { color: var(--text-color-high, #101828); }
+.oaf-mode-extra { color: #475467; font-size: 12px; font-weight: 500; }
+[data-darkmode="true"] .oaf-mode-source,
+[data-darkmode="true"] .oaf-mode-extra { color: #d0d5dd; }
+#rules-list-container table.common-table td:nth-child(2) { max-width: none !important; }
+
+/* ---- 按钮层级：全页一个实心主色，其余描边，危险操作描边红 ---- */
+#rules-list-container .btn-edit,
+#rules-list-container .btn-delete,
+#rules-list-container .btn-copy,
+.oaf-whitelist-delete-btn,
+#user_status_table .oaf-danger-btn,
+#add-rule-modal .btn-remove-time,
+#add-rule-modal .btn-add-time,
+#clean-history {
+    border: 1px solid var(--border-color-medium, #d0d5dd) !important;
+    background: transparent !important;
+    color: var(--text-color-high, #344054) !important;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+}
+#rules-list-container .btn-delete,
+.oaf-whitelist-delete-btn,
+#user_status_table .oaf-danger-btn,
+#add-rule-modal .btn-remove-time,
+#clean-history {
+    border-color: #f0b4b6 !important;
+    color: #d92d20 !important;
+}
+#rules-list-container .btn-delete:hover,
+.oaf-whitelist-delete-btn:hover,
+#user_status_table .oaf-danger-btn:hover,
+#clean-history:hover { background: #d92d20 !important; color: #fff !important; }
+#add-rule-modal .btn-add-time {
+    border: 1px dashed var(--primary-color, #5e72e4) !important;
+    color: var(--primary-color, #3538cd) !important;
+}
+#rules-list-container .btn-edit:hover,
+#rules-list-container .btn-copy:hover,
+#add-rule-modal .btn-remove-time:hover { background: var(--background-color-low, #f2f4f7) !important; }
+
+/* ---- 白名单 / 应用记录：说明块与面板头 ---- */
+.oaf-whitelist-notice {
+    border: 1px solid #e4e7ec;
+    border-left: 3px solid #5e72e4;
+    background: #f7f8ff;
+    font-size: 12.5px;
+    line-height: 1.7;
+    padding: 10px 14px;
+    border-radius: 6px;
+}
+.oaf-panel-title { font-size: 15px; font-weight: 600; color: var(--text-color-high, #101828); }
+
+/* ---- 应用过滤：推广横幅收进工具栏（文案在模板里缩短） ---- */
+.rules-toolbar h3 { margin-right: auto !important; }
+.rules-toolbar .app-filter-tip {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 5px;
+    flex: 0 0 auto !important;
+    margin: 0 0 0 10px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: none !important;
+    color: var(--text-color-medium, #475467) !important;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+.rules-toolbar .app-filter-tip-icon { width: 13px !important; height: 13px !important; color: #98a2b3 !important; }
+.rules-toolbar .app-filter-tip-icon svg { width: 13px !important; height: 13px !important; }
+.rules-toolbar .app-filter-tip a { margin-left: 2px !important; color: var(--primary-color, #3538cd) !important; font-weight: 500; text-decoration: none; }
+.rules-toolbar .app-filter-tip a:hover { text-decoration: underline; }
+
+/* ---- 用户列表（桌面） ---- */
+.user-view-toolbar { flex-wrap: nowrap; align-items: center; gap: 8px; }
+#user_status_table .user-col-ip, #user_status_table .user-col-traffic, #user_status_table .user-col-net-time { font-variant-numeric: tabular-nums; }
+#user_status_cards .user-card-status.online { color: #15803d; font-weight: 600; }
+#user_status_cards .user-card-status.active { color: #b42318; font-weight: 600; }
+#user_status_cards .user-card-status.offline { color: var(--text-color-medium, #4b5563); font-weight: 600; }
+#user_status_cards .user-card-line.user-card-apps { justify-content: flex-start; gap: 10px; }
+#user_status_cards .user-card-apps .user-card-value { text-align: left; flex: 0 1 auto; }
+
+/* ---- 终端详情（桌面） ---- */
+.detail-back-link {
+    height: 30px;
+    padding: 0 10px 0 6px;
+    border: 1px solid #d0d5dd;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-color-medium, #475467);
+}
+#device-title-mac { font-size: 15px; font-weight: 600; background: transparent !important; }
+#tab-user-info .user-basic-info-table .td:nth-child(odd) {
+    width: 130px;
+    background: var(--background-color-low, #f9fafb) !important;
+    color: var(--text-color-medium, #475467);
+    font-weight: 500;
+}
+#tab-user-info .user-basic-info-table .td:nth-child(even) { font-variant-numeric: tabular-nums; }
+.oaf-status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; vertical-align: middle; margin-right: 6px; }
+
+/* ---- 设置页（桌面） ---- */
+.settings-page { max-width: 1000px !important; }
+.settings-heading { font-size: 18px !important; }
+.settings-panel-header { font-size: 15px !important; padding: 13px 16px !important; }
+.settings-panel-header:hover { background: var(--background-color-medium, #f2f4f7) !important; }
+.settings-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    align-items: center;
+    padding: 10px 12px !important;
+    margin-top: 8px;
+    border-top: 1px solid var(--border-color-low, #eaecf0);
+    box-shadow: 0 -6px 16px rgba(16, 24, 40, .06);
+    background: var(--background-color-high, #fff);
+}
+.settings-actions #settings-tip { margin: 0 auto 0 0 !important; text-align: left !important; font-size: 12px; }
+#settings-save { background: #5e72e4 !important; border-color: #5e72e4 !important; color: #fff !important; }
+.settings-actions .btn-secondary, .settings-actions #settings-refresh { background: transparent !important; color: var(--text-color-medium, #475467) !important; border: 1px solid var(--border-color-medium, #d0d5dd) !important; }
+#url-record-save-row { display: none; }
+.oaf-section-save-hint { margin: 0 0 10px; font-size: 12px; color: #475467; }
+
+/* ---- 空态（详情页 / 白名单） ---- */
+.oaf-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 34px 16px;
+    border: 1px dashed var(--border-color-medium, #d1d5db);
+    border-radius: 10px;
+    color: #475467;
+    font-size: 13px;
+    line-height: 1.7;
+    text-align: center;
+}
+.oaf-empty-state svg { width: 28px; height: 28px; opacity: .55; }
+.oaf-empty-state .btn-primary { padding: 6px 16px; }
+
+/* ---- 行内启停开关 ---- */
+.oaf-rule-switch { display: inline-flex; align-items: center; cursor: pointer; }
+.oaf-rule-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.oaf-rule-switch .oaf-switch-track {
+    position: relative;
+    width: 34px; height: 20px;
+    border-radius: 10px;
+    background: var(--border-color-medium, #d0d5dd);
+    transition: background .15s ease;
+}
+.oaf-rule-switch .oaf-switch-track::after {
+    content: '';
+    position: absolute; top: 2px; left: 2px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #fff;
+    transition: transform .15s ease;
+}
+.oaf-rule-switch input:checked + .oaf-switch-track { background: #5e72e4; }
+.oaf-rule-switch input:checked + .oaf-switch-track::after { transform: translateX(14px); }
+.oaf-rule-switch input:focus-visible + .oaf-switch-track { outline: 2px solid #3b82f6; outline-offset: 2px; }
+
+/* ==========================================================================
+   统一断点 768px：移动端形态（P0-1 / P0-2 / P0-3 / P0-4 / P0-5）
+   ========================================================================== */
+@media (max-width: 768px) {
+    /* ---- P0-2 顶部 9 页签与内层页签横滑（同一套规则） ---- */
+    #tabmenu ul.tabs,
+    .tab-list {
+        flex-wrap: nowrap !important;
+        flex-direction: row !important;
+        gap: 0 !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        -webkit-overflow-scrolling: touch;
+        scroll-snap-type: x proximity;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        /* 不再用 mask 渐隐：JS 未及时加 at-edge 时右侧会留一块渐变遮罩，
+           看起来像样式加载不全。页签本身可横滑，不需要视觉遮罩。 */
+        mask-image: none !important;
+        -webkit-mask-image: none !important;
+    }
+    #tabmenu ul.tabs::-webkit-scrollbar,
+    .tab-list::-webkit-scrollbar { display: none; }
+    #tabmenu ul.tabs > li,
+    .tab-list > .tab-item {
+        flex: 0 0 auto !important;
+        scroll-snap-align: start;
+        min-height: 40px;
+        padding: 8px 8px !important;
+    }
+    #tabmenu ul.tabs > li > a { display: inline-block; padding: 9px 2px; }
+
+    /* ---- 移动端内容区与顶部页签同宽：去掉页面容器的额外左右留白 ---- */
+    #maincontent .cbi-map,
+    #maincontent .cbi-section,
+    #maincontent .cbi-tblsection {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        max-width: none !important;
+    }
+
+    /* ---- 搜索框与「筛选」按钮同一行 ---- */
+    .oaf-toolbar { flex-wrap: wrap; gap: 8px 10px; }
+    .oaf-toolbar-search { flex: 1 1 auto; width: auto; min-width: 0; }
+    .oaf-toolbar-search input { width: 100%; }
+    .oaf-toolbar > .oaf-toolbar-btn-filter { flex: 0 0 auto; }
+    .user-view-toolbar { display: none !important; }
+    #user-search-clear { display: none !important; }
+
+    /* ---- 规则页标题、推广链接、添加规则同一行 ---- */
+    .rules-toolbar {
+        flex-wrap: nowrap !important;
+        gap: 8px;
+    }
+    .rules-toolbar .app-filter-tip { flex: 0 1 auto; min-width: 0; }
+    .rules-toolbar .app-filter-tip-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap !important;
+    }
+    .rules-toolbar #btn-add-rule { margin-left: 0; }
+
+    /* ---- 详情页图表：移动端降高，避免固定 350/400px 撑出大片空白 ----
+       APP 统计要留给底部多行图例，给到 380px */
+    #app_time_chart { height: 380px !important; }
+    #hourly_traffic_chart,
+    #hourly_apps_chart { height: 340px !important; }
+
+    /* ---- P0-1 四张表 + P0-5 详情页四张表：共用卡片形态 ---- */
+    #rules-list-container table.common-table,
+    .oaf-whitelist-table,
+    #online-record-table,
+    #history-record-table,
+    #visit_list_table,
+    .url-records-table,
+    #tab-url-lists table,
+    #tab-behavior-rules table {
+        display: block !important;
+        width: 100% !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+    }
+    #rules-list-container table.common-table thead,
+    .oaf-whitelist-table thead,
+    #online-record-table tr.tr.table-titles,
+    #history-record-table tr.tr.table-titles,
+    #visit_list_table tr.tr.table-titles,
+    .url-records-table tr.tr.table-titles,
+    #tab-url-lists tr.tr.table-titles,
+    #tab-behavior-rules tr.tr.table-titles { display: none !important; }
+    #rules-list-container table.common-table tbody,
+    .oaf-whitelist-table tbody,
+    #online-record-table,
+    #history-record-table,
+    #visit_list_table,
+    .url-records-table,
+    #tab-url-lists table,
+    #tab-behavior-rules table { display: block !important; }
+    #rules-list-container table.common-table tbody tr,
+    .oaf-whitelist-table tbody tr,
+    #online-record-table tr.tr:not(.table-titles),
+    #history-record-table tr.tr:not(.table-titles),
+    #visit_list_table tr.tr:not(.table-titles),
+    .url-records-table tr.tr:not(.table-titles),
+    #tab-url-lists table tr.tr:not(.table-titles),
+    #tab-behavior-rules table tr.tr:not(.table-titles) {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-items: flex-start;
+        gap: 0 10px;
+        margin-bottom: 8px;
+        padding: 12px 14px;
+        border: 1px solid var(--border-color-low, #eaecf0);
+        border-radius: 8px;
+        background: var(--background-color-high, #fff);
+    }
+    #rules-list-container table.common-table td,
+    .oaf-whitelist-table td,
+    #online-record-table td,
+    #history-record-table td,
+    #visit_list_table td,
+    .url-records-table td,
+    #tab-url-lists table td,
+    #tab-behavior-rules table td {
+        display: block !important;
+        flex: 1 1 45% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        width: auto !important;
+        padding: 4px 0 !important;
+        border: 0 !important;
+        text-align: left !important;
+        white-space: normal !important;
+        word-break: normal !important;
+        overflow-wrap: anywhere;
+        font-size: 13px;
+    }
+    #rules-list-container table.common-table td::before,
+    .oaf-whitelist-table td::before,
+    #online-record-table td::before,
+    #history-record-table td::before,
+    #visit_list_table td::before,
+    .url-records-table td::before,
+    #tab-url-lists table td::before,
+    #tab-behavior-rules table td::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 2px;
+        color: #475467;
+        font-size: 12px;
+        font-weight: 500;
+    }
+    [data-darkmode="true"] #rules-list-container table.common-table td::before,
+    [data-darkmode="true"] .oaf-whitelist-table td::before,
+    [data-darkmode="true"] #online-record-table td::before,
+    [data-darkmode="true"] #history-record-table td::before,
+    [data-darkmode="true"] #visit_list_table td::before,
+    [data-darkmode="true"] .url-records-table td::before,
+    [data-darkmode="true"] #tab-url-lists table td::before,
+    [data-darkmode="true"] #tab-behavior-rules table td::before { color: #d0d5dd; }
+    /* 名称列只加粗。卡片化时不要给 td:first-child / td:last-child 写全局 width:100%：
+       首行需要几列并排是按页定稿的，全局整行规则会按权重压掉后面的 order 布局。 */
+    #rules-list-container table.common-table td:first-child,
+    .oaf-whitelist-table td:first-child,
+    #online-record-table td:first-child,
+    #history-record-table td:first-child,
+    #visit_list_table td:first-child,
+    .url-records-table td:first-child,
+    #tab-url-lists table td:first-child,
+    #tab-behavior-rules table td:first-child { font-weight: 600; }
+    /* 确实需要整行的操作列，单独写带表格标识的选择器 */
+    .oaf-whitelist-table td:last-child,
+    .url-records-table td:last-child,
+    #tab-url-lists table td:last-child {
+        flex: 0 0 auto !important;
+        width: 100% !important;
+    }
+    #rules-list-container .rule-actions,
+    #tab-url-lists table td:last-child,
+    .url-records-table td:last-child { display: flex !important; flex-wrap: wrap; gap: 8px; }
+    #rules-list-container .rule-actions button,
+    #tab-url-lists table button,
+    .url-records-table button,
+    .oaf-whitelist-table button { min-height: 40px; padding: 6px 14px; }
+    /* 首行并排的列不显示字段名，字段名只留给第二行起的键值列 */
+    #app_filter_rules_page .common-table td:nth-child(1)::before,
+    #app_filter_rules_page .common-table td:nth-child(5)::before,
+    #app_filter_rules_page .common-table td:nth-child(6)::before,
+    #mac_filter_rules_page .common-table td:nth-child(1)::before,
+    #mac_filter_rules_page .common-table td:nth-child(4)::before,
+    #mac_filter_rules_page .common-table td:nth-child(5)::before,
+    #online-record-table td:nth-child(1)::before,
+    #online-record-table td:nth-child(8)::before,
+    #online-record-table td:nth-child(9)::before,
+    #history-record-table td:nth-child(1)::before,
+    #history-record-table td:nth-child(8)::before,
+    #history-record-table td:nth-child(9)::before,
+    #visit_list_table td:nth-child(1)::before,
+    #visit_list_table td:nth-child(5)::before,
+    #visit_list_table td:nth-child(6)::before { content: none !important; }
+
+    /* 应用过滤 / 上网控制定稿 3 行：名称+状态+操作 / 模式|时间 / 应用整行 */
+    #app_filter_rules_page #rules-list-container .common-table td:nth-child(1),
+    #mac_filter_rules_page #rules-list-container .common-table td:nth-child(1) {
+        order: 1; flex: 1 1 auto !important; min-width: 0 !important; width: auto !important;
+    }
+    #app_filter_rules_page #rules-list-container .common-table td:nth-child(5),
+    #mac_filter_rules_page #rules-list-container .common-table td:nth-child(4) {
+        order: 2; flex: 0 0 auto !important; width: auto !important;
+    }
+    #app_filter_rules_page #rules-list-container .common-table td:nth-child(6),
+    #mac_filter_rules_page #rules-list-container .common-table td:nth-child(5) {
+        order: 3; flex: 0 0 auto !important; width: auto !important;
+    }
+    #app_filter_rules_page .common-table tbody tr::before,
+    #mac_filter_rules_page .common-table tbody tr::before {
+        content: ''; order: 4; flex: 0 0 100%; height: 0;
+    }
+    #app_filter_rules_page .common-table td:nth-child(2),
+    #mac_filter_rules_page .common-table td:nth-child(2) { order: 5; }
+    #app_filter_rules_page .common-table td:nth-child(3),
+    #mac_filter_rules_page .common-table td:nth-child(3) { order: 6; }
+    #app_filter_rules_page .common-table tbody tr::after {
+        content: ''; order: 7; flex: 0 0 100%; height: 0;
+    }
+    #app_filter_rules_page .common-table td:nth-child(4) {
+        order: 8; flex: 0 0 auto !important; width: 100% !important;
+    }
+
+    /* 应用记录定稿 4 行：应用 + 在线 + 过滤状态 同一行 */
+    #online-record-table td:nth-child(1), #history-record-table td:nth-child(1) {
+        order: 1; flex: 1 1 auto !important; min-width: 0 !important; width: auto !important;
+    }
+    #online-record-table td:nth-child(8), #history-record-table td:nth-child(8) {
+        order: 2; flex: 0 0 auto !important; width: auto !important;
+    }
+    #online-record-table td:nth-child(9), #history-record-table td:nth-child(9) {
+        order: 3; flex: 0 0 auto !important; width: auto !important;
+    }
+    #online-record-table tr.tr::before, #history-record-table tr.tr::before { content: ''; order: 4; flex: 0 0 100%; height: 0; }
+    #online-record-table td:nth-child(3), #history-record-table td:nth-child(3) { order: 5; }
+    #online-record-table td:nth-child(4), #history-record-table td:nth-child(4) { order: 6; }
+    #online-record-table td:nth-child(2), #history-record-table td:nth-child(2) { order: 7; }
+    #online-record-table td:nth-child(7), #history-record-table td:nth-child(7) { order: 8; }
+    #online-record-table td:nth-child(5), #history-record-table td:nth-child(5) { order: 9; }
+    #online-record-table td:nth-child(6), #history-record-table td:nth-child(6) { order: 10; }
+
+    /* 详情页 APP访问记录：APP名称 + 在线状态 + 过滤状态 并排 */
+    #visit_list_table td:nth-child(1) { order: 1; flex: 1 1 auto !important; min-width: 0 !important; width: auto !important; }
+    #visit_list_table td:nth-child(5) { order: 2; flex: 0 0 auto !important; width: auto !important; }
+    #visit_list_table td:nth-child(6) { order: 3; flex: 0 0 auto !important; width: auto !important; }
+    #visit_list_table tr.tr:not(.table-titles)::before { content: ''; order: 4; flex: 0 0 100%; height: 0; }
+    #visit_list_table td:nth-child(2) { order: 5; }
+    #visit_list_table td:nth-child(3) { order: 6; }
+    #visit_list_table td:nth-child(4) { order: 7; }
+
+    /* 白名单 / URL 名单：序号与类型列只占自身宽度，操作列整行 */
+    .oaf-whitelist-table td:nth-child(1),
+    #tab-url-lists table td:nth-child(2) { flex: 0 0 auto !important; width: auto !important; }
+    .oaf-whitelist-table td:nth-child(1)::before { content: none !important; }
+
+    /* ---- P0-4 用户列表：表格隐藏、复用插件自带卡片 ---- */
+    #user_table_wrapper { display: none !important; }
+    #user_status_cards { display: flex !important; }
+    #view_mode_list_btn, #view_mode_card_btn { display: none !important; }
+    /* 方案 B：只在移动端关掉内层滚动；桌面保留 overflow-x:auto + 20px 给宽表用 */
+    .user-status-content {
+        max-height: none !important;
+        overflow: visible !important;
+        padding-right: 0 !important;
+    }
+    #user_status_cards .user-card {
+        padding: 13px 14px;
+        border: 1px solid #eaecf0;
+        border-radius: 12px;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+    }
+    #user_status_cards.user-card-grid { gap: 10px; }
+    #user_status_cards .user-card-row { gap: 10px; }
+    #user_status_cards .user-card-body {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px 14px;
+    }
+    #user_status_cards .user-card-line:nth-child(1) { grid-column: 1; grid-row: 1; }
+    #user_status_cards .user-card-line:nth-child(2) { grid-column: 2; grid-row: 1; }
+    #user_status_cards .user-card-line:nth-child(3) { grid-column: 1; grid-row: 2; }
+    #user_status_cards .user-card-line:nth-child(5) { grid-column: 2; grid-row: 2; align-self: center; }
+    #user_status_cards .user-card-line:nth-child(4) { grid-column: 1 / -1; grid-row: 3; }
+    #user_status_cards .user-card-title {
+        display: -webkit-box !important;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        white-space: normal !important;
+        overflow: hidden !important;
+        text-overflow: clip !important;
+        word-break: normal !important;
+        overflow-wrap: anywhere;
+        font-size: 13px !important;
+        line-height: 1.38;
+        max-height: 2.76em;
+    }
+    .user-view-toolbar { flex-wrap: nowrap; align-items: center; gap: 8px; }
+    .user-view-toolbar #user-search-input { flex: 1 1 auto; min-width: 0; width: auto !important; min-height: 40px; }
+    .user-view-toolbar .user-count-hint { font-size: 12px; white-space: nowrap; }
+    .user-view-toolbar button { min-height: 40px; }
+}
+
+/* 同一 768px 断点的第二组：弹窗、详情页、设置页 */
+@media (max-width: 768px) {
+    /* ---- P0-3 规则弹窗：时间规则行纵向化、底部操作条吸底 ---- */
+    #add-rule-modal .modal-content {
+        padding: 16px 14px 0 !important;
+        max-width: 100% !important;
+        width: calc(100vw - 24px) !important;
+        max-height: calc(100vh - 32px);
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    #add-rule-modal .modal-content h3 { font-size: 16px; margin-bottom: 14px; }
+    #add-rule-modal .form-group { margin-bottom: 14px; }
+    #add-rule-modal .form-group input[type="text"],
+    #add-rule-modal .form-group input[type="time"],
+    #add-rule-modal .form-group select { max-width: 100% !important; min-height: 40px; }
+    #add-rule-modal .time-rule-item {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 10px;
+    }
+    #add-rule-modal .time-rule-weekdays {
+        flex: 1 1 100% !important;
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        gap: 4px;
+    }
+    #add-rule-modal .time-rule-weekday { flex: 1 1 0; min-width: 0; position: relative; }
+    #add-rule-modal .time-rule-weekday input[type="checkbox"] { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    #add-rule-modal .time-rule-weekday label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        min-height: 40px;
+        padding: 0 2px;
+        border: 1px solid var(--border-color-medium, #d0d5dd);
+        border-radius: 6px;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    #add-rule-modal .time-rule-weekday input:checked + label {
+        background: var(--primary-color, #5e72e4);
+        border-color: var(--primary-color, #5e72e4);
+        color: #fff;
+        font-weight: 600;
+    }
+    #add-rule-modal .time-rule-time { flex: 1 1 auto; display: flex; align-items: center; gap: 6px; min-width: 0; }
+    #add-rule-modal .time-rule-time input[type="time"] { flex: 1 1 0; min-width: 0; }
+    #add-rule-modal .time-rule-time input[type="time"]::-webkit-calendar-picker-indicator { width: 12px; opacity: .45; }
+    #add-rule-modal .time-rule-actions { flex: 0 0 auto; }
+    #add-rule-modal .btn-remove-time { min-height: 40px; }
+    #add-rule-modal .modal-actions {
+        position: sticky;
+        bottom: 0;
+        z-index: 5;
+        display: flex;
+        gap: 8px;
+        margin: 16px -14px 0;
+        padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+        border-top: 1px solid var(--border-color-low, #eaecf0);
+        background: var(--background-color-high, #fff);
+    }
+    #add-rule-modal .modal-actions button { flex: 1 1 0; min-height: 40px; }
+    #add-rule-modal .app-selection-container { max-height: 240px; overflow-y: auto; }
+    #add-rule-modal .modal-content form > .app-selection-container,
+    #add-rule-modal .app-selection-container { overscroll-behavior: contain; }
+
+    /* ---- P0-5 详情页基本信息：一行一对「标签 100px | 值」 ---- */
+    #tab-user-info .user-basic-info-table { display: block !important; width: 100%; border: 0 !important; background: transparent !important; }
+    #tab-user-info .user-basic-info-table .tr { display: flex; flex-wrap: wrap; width: 100%; }
+    #tab-user-info .user-basic-info-table .td:nth-child(odd) {
+        flex: 0 0 100px !important;
+        width: 100px !important;
+        min-width: 100px !important;
+        padding: 8px 8px 8px 12px !important;
+        background: var(--background-color-low, #f9fafb) !important;
+        color: var(--text-color-medium, #475467) !important;
+        font-size: 12px !important;
+        font-weight: 500 !important;
+        white-space: nowrap !important;
+    }
+    #tab-user-info .user-basic-info-table .td:nth-child(even) {
+        flex: 1 1 calc(100% - 100px) !important;
+        min-width: 0 !important;
+        width: auto !important;
+        padding: 8px 10px !important;
+        text-align: left !important;
+        overflow-wrap: anywhere;
+    }
+    /* 详情页其余表格沿用 P0-1 的卡片形态 */
+    #tab-url-records .url-records-disabled,
+    #tab-url-lists .form-desc-inline { font-size: 12px; line-height: 1.6; }
+    #tab-url-records .url-records-filter { flex-wrap: wrap; gap: 8px; }
+    #tab-url-records .url-records-filter label { display: inline-flex; align-items: center; gap: 4px; min-height: 40px; }
+    #tab-url-records .url-records-filter input { max-width: 100%; min-height: 40px; }
+
+    /* ---- 设置页窄屏：操作条占满、控件不溢出 ---- */
+    .settings-page { padding: 0 4px !important; }
+    .settings-panel-body .form-row { display: block; }
+    .settings-panel-body .form-label { display: block; width: auto; margin-bottom: 7px; }
+    .settings-actions { flex-wrap: wrap; }
+    .settings-actions #settings-tip { flex: 1 1 100%; margin: 0 0 6px 0 !important; }
+    .settings-actions button { flex: 1 1 0; min-height: 40px; }
+
+    /* ---- 横向溢出兜底：所有新增交互控件不得超出视口 ---- */
+    .oaf-chip, .oaf-empty-state, .oaf-whitelist-notice { max-width: 100%; }
+    input[type="text"], input[type="time"], select, button { box-sizing: border-box; }
+}
+
+/* 深色模式兜底：卡片/操作条/空态随主题走，不写死浅底深字 */
+[data-darkmode="true"] #rules-list-container table.common-table tbody tr,
+[data-darkmode="true"] .oaf-whitelist-table tbody tr,
+[data-darkmode="true"] #user_status_cards .user-card,
+[data-darkmode="true"] .settings-actions,
+[data-darkmode="true"] #add-rule-modal .modal-actions {
+    background: var(--background-color-high, #1f2937);
+    color: var(--text-color-high, #e5e7eb);
+}
+[data-darkmode="true"] .oaf-whitelist-notice { background: rgba(94, 114, 228, .12); color: var(--text-color-high, #e5e7eb); }
+[data-darkmode="true"] .oaf-chip { background: var(--background-color-low, #374151); color: var(--text-color-high, #e5e7eb); }
+
+/* ---- 白名单 3 个子页签：与顶部导航一致的下划线式 ---- */
+.oaf-whitelist-tabs {
+    display: flex !important;
+    align-items: center;
+    gap: 2px !important;
+    padding: 0 !important;
+    margin: 0 0 14px !important;
+    box-shadow: inset 0 -1px 0 var(--border-color-low, #eaecf0) !important;
+    border: 0 !important;
+    background: transparent !important;
+    overflow-x: hidden;
+    flex-wrap: wrap;
+    /* 这三个页签永远不需要横向滚动：换行即可，避免容器变成拖拽源 */
+}
+.oaf-whitelist-tab {
+    flex: 0 0 auto;
+    padding: 8px 14px !important;
+    margin: 0 0 -1px 0 !important;
+    border: 0 !important;
+    border-bottom: 2px solid transparent !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: var(--text-color-medium, #475467) !important;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.oaf-whitelist-tab:hover { color: var(--primary-color, #5e72e4) !important; }
+.oaf-whitelist-tab.active {
+    color: var(--primary-color, #2b3ac9) !important;
+    font-weight: 600;
+    border-bottom-color: var(--primary-color, #5e72e4) !important;
+    background: transparent !important;
+}
+@media (max-width: 768px) {
+    /* 页签放不下就换行，不能留 overflow-x:auto：
+       这里带 !important，会压掉页面里的换行规则，容器成了横向滚动源，
+       手指一划整页跟着左右动。 */
+    .oaf-whitelist-tabs {
+        flex-wrap: wrap !important;
+        overflow-x: hidden !important;
+        overflow-y: hidden !important;
+        row-gap: 6px !important;
+        scroll-snap-type: none;
+    }
+    .oaf-whitelist-tab {
+        flex: 1 1 auto;
+        min-width: 0;
+        min-height: 40px;
+        text-align: center;
+    }
+    #appFilterWhitelistPanel, #accessControlWhitelistPanel, #recordWhitelistTableBody { min-width: 0; }
+}
+
+
+/* ==========================================================================
+   P1-5 列表工具栏（搜索 + 状态筛选 + 时间筛选 + 每页条数）
+   桌面：单行内联；窄屏：搜索常驻，筛选/条数收进「筛选」按钮的底部抽屉
+   ========================================================================== */
+.oaf-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 0 0 12px;
+}
+
+.oaf-toolbar-search {
+    position: relative;
+    flex: 0 0 280px;
+    min-width: 0;
+}
+
+.oaf-toolbar-search input {
+    width: 100%;
+    height: 36px;
+    padding: 0 32px 0 34px !important;
+    border: 1px solid var(--border-color-medium, #d0d5dd) !important;
+    border-radius: 8px !important;
+    background: var(--background-color-high, #fff) !important;
+    color: var(--text-color-high, #1d2939) !important;
+    font-size: 13px;
+    box-sizing: border-box;
+}
+
+.oaf-toolbar-search input:focus {
+    outline: none;
+    border-color: var(--primary-color, #5e72e4) !important;
+    box-shadow: 0 0 0 3px rgba(94, 114, 228, .12);
+}
+
+.oaf-toolbar-search .oaf-search-icon {
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 15px;
+    height: 15px;
+    color: #98a2b3;
+    pointer-events: none;
+}
+
+.oaf-toolbar-search .oaf-search-clear {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: none;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #98a2b3;
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.oaf-toolbar-search.has-value .oaf-search-clear { display: block; }
+.oaf-toolbar-search .oaf-search-clear:hover { background: #f2f4f7; color: #475467; }
+
+.oaf-toolbar-filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.oaf-toolbar-filters select,
+.oaf-toolbar-size select {
+    height: 36px;
+    padding: 0 26px 0 10px !important;
+    border: 1px solid var(--border-color-medium, #d0d5dd) !important;
+    border-radius: 8px !important;
+    background-color: var(--background-color-high, #fff) !important;
+    color: var(--text-color-high, #1d2939) !important;
+    font-size: 13px;
+    line-height: 34px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16'%3E%3Cpath fill='%23667085' d='M8 11 3 6h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+}
+
+.oaf-toolbar-size {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #475467;
+}
+
+.oaf-toolbar-hint {
+    font-size: 12px;
+    color: #475467;
+    margin-left: 2px;
+}
+
+.oaf-toolbar-btn-filter {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid var(--border-color-medium, #d0d5dd);
+    border-radius: 8px;
+    background: var(--background-color-high, #fff);
+    color: var(--text-color-high, #1d2939);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.oaf-toolbar-btn-filter .oaf-filter-count {
+    display: none;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 8px;
+    background: var(--primary-color, #5e72e4);
+    color: #fff;
+    font-size: 10px;
+    line-height: 16px;
+    text-align: center;
+}
+
+.oaf-toolbar-btn-filter.has-active .oaf-filter-count { display: inline-block; }
+
+/* 底部筛选抽屉 */
+.oaf-filter-drawer-mask {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    background: rgba(16, 24, 40, .45);
+    opacity: 0;
+    transition: opacity .2s ease;
+}
+
+.oaf-filter-drawer-mask.show { opacity: 1; }
+
+.oaf-filter-drawer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1101;
+    max-height: 72vh;
+    overflow-y: auto;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    border-radius: 14px 14px 0 0;
+    background: var(--background-color-high, #fff);
+    transform: translateY(100%);
+    transition: transform .24s ease;
+    box-sizing: border-box;
+}
+
+.oaf-filter-drawer.show { transform: translateY(0); }
+
+.oaf-filter-drawer-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-color-high, #101828);
+    margin: 0 0 14px;
+}
+
+.oaf-filter-drawer-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-color-low, #f2f4f7);
+}
+
+.oaf-filter-drawer-row label {
+    font-size: 13px;
+    color: var(--text-color-high, #344054);
+    flex: 0 0 auto;
+}
+
+.oaf-filter-drawer-row select {
+    flex: 1 1 auto;
+    max-width: 60%;
+    height: 38px;
+    padding: 0 26px 0 10px !important;
+    border: 1px solid var(--border-color-medium, #d0d5dd) !important;
+    border-radius: 8px !important;
+    background-color: var(--background-color-high, #fff) !important;
+    color: var(--text-color-high, #1d2939) !important;
+    font-size: 13px;
+}
+
+.oaf-filter-drawer-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.oaf-filter-drawer-actions button {
+    flex: 1 1 0;
+    min-height: 42px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.oaf-filter-drawer-reset {
+    border: 1px solid var(--border-color-medium, #d0d5dd);
+    background: transparent;
+    color: var(--text-color-high, #344054);
+}
+
+.oaf-filter-drawer-apply {
+    border: 1px solid var(--primary-color, #5e72e4);
+    background: var(--primary-color, #5e72e4);
+    color: #fff;
+}
+
+@media (max-width: 768px) {
+    /* 记录类页面工具栏按钮较多，允许换行而不是横向溢出 */
+    .oaf-toolbar { flex-wrap: wrap; gap: 8px; }
+    .oaf-toolbar-search { flex: 1 1 auto; width: auto; min-width: 0; }
+    .oaf-toolbar > .cbi-button { flex: 0 0 auto; min-height: 38px; }
+    .oaf-toolbar-search input { height: 40px; }
+    .oaf-toolbar-filters { display: none; }
+    .oaf-toolbar-size { display: none; }
+    .oaf-toolbar-btn-filter { display: inline-flex; flex: 0 0 auto; min-height: 40px; }
+    .oaf-toolbar-hint { display: none; }
+}
+
+/* ==========================================================================
+   P1-7 应用选择器搜索 / P1-10 设备多选器增强
+   ========================================================================== */
+.oaf-selector-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-color-low, #eaecf0);
+    background: var(--background-color-high, #fff);
+    position: sticky;
+    top: 0;
+    z-index: 3;
+}
+
+.oaf-selector-search input[type="search"] {
+    flex: 1 1 auto;
+    height: 34px;
+    padding: 0 10px !important;
+    border: 1px solid var(--border-color-medium, #d0d5dd) !important;
+    border-radius: 8px !important;
+    font-size: 13px;
+    box-sizing: border-box;
+}
+
+.oaf-selector-search .oaf-selector-only-online {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--text-color-medium, #475467);
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.oaf-selector-count {
+    font-size: 12px;
+    color: #475467;
+    white-space: nowrap;
+}
+
+.oaf-modal-title-count {
+    font-weight: 400;
+    font-size: 13px;
+    color: var(--primary-color, #5e72e4);
+    margin-left: 6px;
+}
+
+.oaf-user-option-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 8px;
+    font-size: 12px;
+    color: #475467;
+}
+
+.oaf-online-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #98a2b3;
+    flex: 0 0 auto;
+}
+
+.oaf-online-dot.is-online { background: #12b76a; }
+
+.oaf-option-empty {
+    padding: 18px 14px;
+    text-align: center;
+    font-size: 13px;
+    color: #475467;
+}
+
+.oaf-app-category-actions {
+    display: inline-flex;
+    gap: 6px;
+    margin-left: 8px;
+}
+
+.oaf-app-category-actions button {
+    padding: 1px 7px;
+    border: 1px solid var(--border-color-medium, #d0d5dd);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-color-medium, #475467);
+    font-size: 11px;
+    line-height: 18px;
+    cursor: pointer;
+}
+
+.oaf-app-category-actions button:hover {
+    border-color: var(--primary-color, #5e72e4);
+    color: var(--primary-color, #5e72e4);
+}
+
+.oaf-app-item[hidden],
+.oaf-user-item[hidden],
+.oaf-app-category[hidden] { display: none !important; }
+
+/* ==========================================================================
+   P1-8 CSV 导出 / P1-9 URL 手动添加
+   ========================================================================== */
+.oaf-url-add-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border-color-low, #eaecf0);
+    border-radius: 10px;
+    background: var(--background-color-high, #fff);
+}
+
+.oaf-url-add-form input[type="text"] {
+    flex: 1 1 240px;
+    min-width: 0;
+    height: 36px;
+    padding: 0 10px !important;
+    border: 1px solid var(--border-color-medium, #d0d5dd) !important;
+    border-radius: 8px !important;
+    font-size: 13px;
+    box-sizing: border-box;
+}
+
+.oaf-url-add-form select {
+    height: 36px;
+    padding: 0 26px 0 10px !important;
+    border: 1px solid var(--border-color-medium, #d0d5dd) !important;
+    border-radius: 8px !important;
+    background-color: var(--background-color-high, #fff) !important;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.oaf-url-add-form .oaf-url-add-hint {
+    flex: 1 1 100%;
+    font-size: 12px;
+    color: #475467;
+}
+
+.oaf-url-add-form .oaf-url-add-error {
+    flex: 1 1 100%;
+    font-size: 12px;
+    color: #d92d20;
+    display: none;
+}
+
+.oaf-url-add-form.has-error .oaf-url-add-error { display: block; }
+.oaf-url-add-form.has-error input[type="text"] { border-color: #f0b4b6 !important; }
+
+/* ---- URL 访问记录：容器不再留竖向死空白，横向由表格自己处理 ---- */
+.oaf-visit-records-wrap {
+    width: 100%;
+    max-width: 100%;
+    padding-right: 0 !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+/* ---- URL 记录行内「加黑名单 / 加白名单」：红绿两色明确区分 ---- */
+.url-records-table button.oaf-url-add-black {
+    border: 1px solid #f0b4b6 !important;
+    background: transparent !important;
+    color: #d92d20 !important;
+    border-radius: 6px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+.url-records-table button.oaf-url-add-black:hover {
+    background: #d92d20 !important;
+    color: #fff !important;
+}
+.url-records-table button.oaf-url-add-white {
+    border: 1px solid #a6f4c5 !important;
+    background: transparent !important;
+    color: #067647 !important;
+    border-radius: 6px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+.url-records-table button.oaf-url-add-white:hover {
+    background: #067647 !important;
+    color: #fff !important;
+}
+[data-darkmode="true"] .url-records-table button.oaf-url-add-black {
+    border-color: #f97066 !important;
+    color: #fda29b !important;
+}
+[data-darkmode="true"] .url-records-table button.oaf-url-add-white {
+    border-color: #47cd89 !important;
+    color: #6ce9a6 !important;
+}
+
+/* ---- 分页栏：窄屏换行居中，不再把「上一页/下一页」挤出屏幕 ---- */
+.oaf-url-pagination { row-gap: 8px; }
+.oaf-url-pagination .cbi-button {
+    min-width: 40px !important;
+    padding: 6px 10px;
+}
+
+@media (max-width: 768px) {
+    .oaf-url-add-form { padding: 12px; }
+    .oaf-url-add-form input[type="text"] { flex: 1 1 100%; min-height: 40px; }
+    .oaf-url-add-form select { flex: 1 1 auto; min-height: 40px; }
+    .oaf-url-add-form button { flex: 0 0 auto; min-height: 40px; }
+}
+
+/* ==========================================================================
+   P2-12 统一页面容器（宽度 / 留白 / 圆角 / 内边距 / 字号阶梯）
+   优先级说明：施工单 P0-6 的定稿值优先于 P2 的设计原则，
+   因此表格容器圆角保持 10px，其余卡片统一 8px。
+   ========================================================================== */
+#maincontent .cbi-map,
+#maincontent .oaf-page {
+    max-width: 1240px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 16px;
+    padding-right: 16px;
+    box-sizing: border-box;
+}
+
+#maincontent .cbi-map > .cbi-section,
+#maincontent .oaf-page > .cbi-section {
+    border-radius: 8px;
+}
+
+/* 字号阶梯：12 / 14 / 16 / 20 / 24 */
+.oaf-text-12 { font-size: 12px; }
+.oaf-text-14 { font-size: 14px; }
+.oaf-text-16 { font-size: 16px; }
+.oaf-text-20 { font-size: 20px; line-height: 1.35; }
+.oaf-text-24 { font-size: 24px; line-height: 1.3; }
+
+@media (max-width: 768px) {
+    #maincontent .cbi-map,
+    #maincontent .oaf-page { padding-left: 12px; padding-right: 12px; }
+}
+
+/* ==========================================================================
+   P2-13 按钮层级：主操作实心、次操作描边、危险操作描边红（hover/确认时实心）
+   覆盖页面内联的实心蓝/红按钮，权重高于单类选择器
+   ========================================================================== */
+#rules-list-container .rule-actions button,
+#tab-url-lists table button,
+.url-records-table button,
+.oaf-whitelist-table button {
+    min-height: 32px;
+    padding: 5px 13px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.4;
+    cursor: pointer;
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+    box-shadow: none;
+}
+
+#rules-list-container .rule-actions button.btn-edit,
+#rules-list-container .rule-actions button.btn-copy,
+#tab-url-lists table button:not(.btn-danger),
+.url-records-table button:not(.btn-danger),
+.oaf-whitelist-table button:not(.btn-danger) {
+    border: 1px solid var(--border-color-medium, #d0d5dd) !important;
+    background: transparent !important;
+    color: var(--text-color-high, #344054) !important;
+    font-weight: 500;
+}
+
+#rules-list-container .rule-actions button.btn-edit:hover,
+#rules-list-container .rule-actions button.btn-copy:hover,
+#tab-url-lists table button:not(.btn-danger):hover,
+.url-records-table button:not(.btn-danger):hover,
+.oaf-whitelist-table button:not(.btn-danger):hover {
+    border-color: var(--primary-color, #5e72e4) !important;
+    color: var(--primary-color, #5e72e4) !important;
+    background: rgba(94, 114, 228, .06) !important;
+}
+
+/* 危险操作：描边红，hover 才填实 */
+#rules-list-container .rule-actions button.btn-delete,
+#rules-list-container .rule-actions button.btn-danger,
+#tab-url-lists table button.btn-danger,
+.url-records-table button.btn-danger,
+.oaf-whitelist-table button.btn-danger,
+#user_status_table button.btn-ban,
+#settings-clear-history,
+#clean-history {
+    border: 1px solid #f0b4b6 !important;
+    background: transparent !important;
+    color: #d92d20 !important;
+    font-weight: 500;
+}
+
+#rules-list-container .rule-actions button.btn-delete:hover,
+#rules-list-container .rule-actions button.btn-danger:hover,
+#tab-url-lists table button.btn-danger:hover,
+.url-records-table button.btn-danger:hover,
+.oaf-whitelist-table button.btn-danger:hover,
+#user_status_table button.btn-ban:hover,
+#settings-clear-history:hover,
+#clean-history:hover {
+    background: #d92d20 !important;
+    border-color: #d92d20 !important;
+    color: #fff !important;
+}
+
+/* 每行只保留一个实心按钮：用户列表「详情」为主操作，「拉黑」转描边红 */
+#user_status_table .btn-detail,
+#user_status_table button.btn-primary {
+    border: 1px solid var(--primary-color, #5e72e4) !important;
+    background: var(--primary-color, #5e72e4) !important;
+    color: #fff !important;
+}
+
+.oaf-btn-primary {
+    border: 1px solid var(--primary-color, #5e72e4) !important;
+    background: var(--primary-color, #5e72e4) !important;
+    color: #fff !important;
+    border-radius: 8px;
+}
+
+.oaf-btn-secondary {
+    border: 1px solid var(--border-color-medium, #d0d5dd) !important;
+    background: transparent !important;
+    color: var(--text-color-high, #344054) !important;
+    border-radius: 8px;
+}
+
+/* 二次确认弹窗的正文换行，作用对象写在第二行 */
+.oaf-confirm-detail {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: #475467;
+}
+
+/* ==========================================================================
+   P2-14 表格列宽策略（按页分别写，避免 nth-child 映射错列）
+   ========================================================================== */
+/* 六列/五列必须在页面内固定布局，否则浏览器按内容压缩，应用列与操作列会挤到换行 */
+#app_filter_rules_page .common-table,
+#mac_filter_rules_page .common-table { table-layout: fixed; }
+
+#app_filter_rules_page .common-table th:nth-child(1),
+#mac_filter_rules_page .common-table th:nth-child(1) { width: 160px; }
+#app_filter_rules_page .common-table th:nth-child(2),
+#mac_filter_rules_page .common-table th:nth-child(2) { width: 170px; }
+#app_filter_rules_page .common-table th:nth-child(3),
+#mac_filter_rules_page .common-table th:nth-child(3) { width: 190px; }
+/* 应用列吃掉剩余宽度，但不少于 180px，避免 chip 被挤成窄条 */
+#app_filter_rules_page .common-table th:nth-child(4) { width: auto; min-width: 180px; }
+#app_filter_rules_page .common-table th:nth-child(5),
+#mac_filter_rules_page .common-table th:nth-child(4) { width: 76px; }
+#app_filter_rules_page .common-table th:nth-child(6),
+#mac_filter_rules_page .common-table th:nth-child(5) { width: 210px; }
+
+/* 按钮不换行；chip 只在自身内部不换行，列内允许换行且不裁切文字 */
+#rules-list-container .rule-actions button { white-space: nowrap; }
+#rules-list-container td .oaf-chip {
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: visible;
+    text-overflow: clip;
+    padding: 1px 7px;
+    font-size: 12px;
+    line-height: 18px;
+}
+#rules-list-container .time-rules-display { display: inline-block; max-width: 100%; }
+
+#app_filter_rules_page .common-table td:nth-child(1),
+#mac_filter_rules_page .common-table td:nth-child(1) {
+    font-weight: 600;
+    color: var(--text-color-high, #101828);
+}
+
+#app_filter_rules_page .common-table td:nth-child(2),
+#mac_filter_rules_page .common-table td:nth-child(2) {
+    max-width: none !important;
+    white-space: normal !important;
+}
+
+/* 应用列不再用两行截断：chip 完整显示、可换行，第三行不会被裁掉一半 */
+#app_filter_rules_page .common-table td:nth-child(4) {
+    display: block;
+    min-width: 180px;
+    white-space: normal !important;
+    overflow: visible;
+    word-break: break-word;
+}
+#app_filter_rules_page .common-table td:nth-child(4) .oaf-chip {
+    display: inline-block;
+    margin: 0 4px 4px 0;
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+}
+#mac_filter_rules_page .common-table td:nth-child(3) {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+}
+
+.oaf-cell-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+}
+
+/* ==========================================================================
+   P2-15 空态：图标 + 说明 + 主操作
+   ========================================================================== */
+.oaf-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 34px 20px;
+    text-align: center;
+}
+
+.oaf-empty-state .oaf-empty-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(94, 114, 228, .10);
+    color: var(--primary-color, #5e72e4);
+}
+
+.oaf-empty-state .oaf-empty-icon svg { width: 22px; height: 22px; }
+
+.oaf-empty-state .oaf-empty-text {
+    font-size: 13px;
+    color: #475467;
+    line-height: 1.6;
+}
+
+.oaf-empty-state .oaf-empty-action {
+    margin-top: 2px;
+    min-height: 34px;
+    padding: 6px 16px;
+    border: 1px solid var(--primary-color, #5e72e4);
+    border-radius: 8px;
+    background: var(--primary-color, #5e72e4);
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+/* ==========================================================================
+   P2-16 设置页底部 sticky 操作条
+   ========================================================================== */
+.settings-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin: 18px -2px 0;
+    padding: 12px 4px calc(12px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--border-color-low, #eaecf0);
+    background: var(--background-color-high, #fff);
+    box-shadow: 0 -6px 14px -10px rgba(16, 24, 40, .18);
+}
+
+.settings-actions .btn {
+    min-height: 36px;
+    border-radius: 8px;
+}
+
+.settings-dirty-hint {
+    margin-right: auto;
+    align-self: center;
+    font-size: 12px;
+    color: #b54708;
+    display: none;
+}
+
+.settings-actions.is-dirty .settings-dirty-hint { display: block; }
+
+.oaf-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    transform: translateX(-50%) translateY(8px);
+    z-index: 1200;
+    max-width: 86vw;
+    padding: 10px 18px;
+    border-radius: 10px;
+    background: rgba(16, 24, 40, .92);
+    color: #fff;
+    font-size: 13px;
+    line-height: 1.5;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease, transform .2s ease;
+}
+
+.oaf-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.oaf-toast.is-error { background: rgba(217, 45, 32, .95); }
+
+/* ==========================================================================
+   P2-17 状态色：在线=绿、离线=灰、无限制=中性蓝
+   ========================================================================== */
+.oaf-status-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: middle;
+}
+
+.oaf-status-text-online { color: #027a48; }
+.oaf-status-text-online .oaf-status-dot { background: #12b76a; }
+.oaf-status-text-offline { color: #667085; }
+.oaf-status-text-offline .oaf-status-dot { background: #98a2b3; }
+.oaf-status-text-unlimited { color: #175cd3; }
+.oaf-status-text-unlimited .oaf-status-dot { background: #2e90fa; }
+
+/* ==========================================================================
+   P2-19 深色模式：新增的浅色底与硬编码色改为变量或深色覆盖
+   ========================================================================== */
+[data-darkmode="true"] .oaf-toolbar-search input,
+[data-darkmode="true"] .oaf-toolbar-filters select,
+[data-darkmode="true"] .oaf-toolbar-size select,
+[data-darkmode="true"] .oaf-toolbar-btn-filter,
+[data-darkmode="true"] .oaf-url-add-form,
+[data-darkmode="true"] .oaf-url-add-form input[type="text"],
+[data-darkmode="true"] .oaf-url-add-form select,
+[data-darkmode="true"] .oaf-selector-search,
+[data-darkmode="true"] .oaf-selector-search input[type="search"],
+[data-darkmode="true"] .oaf-filter-drawer,
+[data-darkmode="true"] .oaf-filter-drawer-row select {
+    background: var(--background-color-low, #2a3042) !important;
+    border-color: #3f4759 !important;
+    color: var(--text-color-high, #e5e7eb) !important;
+}
+
+[data-darkmode="true"] .oaf-toolbar-search .oaf-search-icon,
+[data-darkmode="true"] .oaf-toolbar-size,
+[data-darkmode="true"] .oaf-toolbar-hint,
+[data-darkmode="true"] .oaf-empty-state .oaf-empty-text,
+[data-darkmode="true"] .oaf-selector-count,
+[data-darkmode="true"] .oaf-user-option-meta,
+[data-darkmode="true"] .oaf-option-empty {
+    color: #98a2b3 !important;
+}
+
+[data-darkmode="true"] .oaf-toolbar-search .oaf-search-clear:hover {
+    background: #3f4759;
+    color: #e5e7eb;
+}
+
+[data-darkmode="true"] .oaf-empty-state .oaf-empty-icon {
+    background: rgba(94, 114, 228, .22);
+}
+
+[data-darkmode="true"] #rules-list-container .rule-actions button.btn-edit,
+[data-darkmode="true"] #rules-list-container .rule-actions button.btn-copy,
+[data-darkmode="true"] #tab-url-lists table button:not(.btn-danger),
+[data-darkmode="true"] .url-records-table button:not(.btn-danger),
+[data-darkmode="true"] .oaf-whitelist-table button:not(.btn-danger),
+[data-darkmode="true"] .oaf-btn-secondary {
+    border-color: #4b5563 !important;
+    color: #d1d5db !important;
+    background: transparent !important;
+}
+
+/* 说明文字在深色底上保持可读 */
+[data-darkmode="true"] .form-text-row,
+[data-darkmode="true"] .status-tip,
+[data-darkmode="true"] .oaf-section-save-hint,
+[data-darkmode="true"] .oaf-empty-state,
+[data-darkmode="true"] .oaf-url-add-hint,
+[data-darkmode="true"] .oaf-confirm-detail,
+[data-darkmode="true"] .form-desc-inline,
+[data-darkmode="true"] .size-field .unit { color: #d0d5dd; }
+
+[data-darkmode="true"] .oaf-filter-drawer-mask { background: rgba(0, 0, 0, .6); }
+
+[data-darkmode="true"] .settings-actions {
+    background: var(--background-color-low, #232a3b);
+    border-top-color: #3f4759;
+    box-shadow: 0 -6px 14px -10px rgba(0, 0, 0, .6);
+}
+
+[data-darkmode="true"] .oaf-status-text-online { color: #6ce9a6; }
+[data-darkmode="true"] .oaf-status-text-offline { color: #98a2b3; }
+[data-darkmode="true"] .oaf-status-text-unlimited { color: #84caff; }
+
+/* ==========================================================================
+   窄屏补充：规则页标题不再被推广横幅与按钮挤压成竖排
+   ========================================================================== */
+@media (max-width: 768px) {
+    .rules-toolbar {
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        gap: 8px;
+    }
+    .rules-toolbar h3 {
+        flex: 1 1 auto;
+        min-width: 0;
+        margin: 0 !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .rules-toolbar .app-filter-tip {
+        order: 2;
+        flex: 0 0 auto !important;
+        margin: 0 !important;
+        white-space: nowrap !important;
+    }
+    .rules-toolbar .app-filter-tip-text { white-space: nowrap !important; }
+    .rules-toolbar #btn-add-rule {
+        order: 3;
+        flex: 0 0 auto;
+        margin-left: auto;
+    }
+    .rules-toolbar .app-filter-tip {
+        flex: 0 1 auto;
+        min-width: 0;
+    }
+    .rules-toolbar .app-filter-tip-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap !important;
+    }
+    /* 详情页标签栏 9 项在窄屏可横滑，已由 .tab-list 规则处理；这里补首尾留白 */
+    .tab-list { padding-inline: 2px; }
+}
+
+/* 极窄屏靠标题省略号消化，推广链接始终不占整行 */
+@media (max-width: 360px) {
+    .rules-toolbar .app-filter-tip-text { font-size: 11px; }
+    .rules-toolbar .app-filter-tip-text a { margin-left: 1px; }
+}
+
+/* ==========================================================================
+   按钮配色最终覆盖
+   业务规则里 `.url-records-table button:not(.btn-danger)` 给所有按钮统一了
+   灰色描边，权重 (0,2,1)。下面用 td + 类名把权重提到 (0,2,2)，并放在文件
+   末尾，确保两色按钮不再被压回灰色。
+   ========================================================================== */
+.url-records-table td button.oaf-url-add-black {
+    border: 1px solid #fda29b !important;
+    background: #fef3f2 !important;
+    color: #b42318 !important;
+    border-radius: 6px !important;
+    font-weight: 600 !important;
+    white-space: nowrap;
+    box-shadow: none !important;
+}
+.url-records-table td button.oaf-url-add-black:hover {
+    border-color: #d92d20 !important;
+    background: #d92d20 !important;
+    color: #fff !important;
+}
+.url-records-table td button.oaf-url-add-white {
+    border: 1px solid #6ce9a6 !important;
+    background: #ecfdf3 !important;
+    color: #067647 !important;
+    border-radius: 6px !important;
+    font-weight: 600 !important;
+    white-space: nowrap;
+    box-shadow: none !important;
+}
+.url-records-table td button.oaf-url-add-white:hover {
+    border-color: #067647 !important;
+    background: #067647 !important;
+    color: #fff !important;
+}
+/* URL 黑白名单里的删除按钮（cbi-button-remove，没有 btn-danger 类） */
+#tab-url-lists table td button.cbi-button-remove {
+    border: 1px solid #fda29b !important;
+    background: #fef3f2 !important;
+    color: #b42318 !important;
+    border-radius: 6px !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+}
+#tab-url-lists table td button.cbi-button-remove:hover {
+    border-color: #d92d20 !important;
+    background: #d92d20 !important;
+    color: #fff !important;
+}
+[data-darkmode="true"] .url-records-table td button.oaf-url-add-black {
+    border-color: #f97066 !important;
+    background: rgba(217, 45, 32, .18) !important;
+    color: #fda29b !important;
+}
+[data-darkmode="true"] .url-records-table td button.oaf-url-add-white {
+    border-color: #47cd89 !important;
+    background: rgba(6, 118, 71, .2) !important;
+    color: #6ce9a6 !important;
+}
+[data-darkmode="true"] #tab-url-lists table td button.cbi-button-remove {
+    border-color: #f97066 !important;
+    background: rgba(217, 45, 32, .18) !important;
+    color: #fda29b !important;
+}
+
+/* 移动端禁止整页左右拖动：表格卡片化后仍有个别列内容把页面撑宽 */
+@media (max-width: 768px) {
+    html,
+    body {
+        overflow-x: hidden !important;
+        max-width: 100vw;
+    }
+    .oaf-whitelist-table-wrap {
+        overflow-x: hidden !important;
+        max-width: 100%;
+    }
+    .oaf-whitelist-table {
+        table-layout: fixed !important;
+        min-width: 0 !important;
+        width: 100% !important;
+    }
+    /* 三个图表撑满容器并居中，避免 canvas 按初始尺寸靠左 */
+    #app_time_chart,
+    #hourly_traffic_chart,
+    #hourly_apps_chart {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+}

@@ -24,6 +24,7 @@
 #include <sqlite3.h>
 #include <uci.h>
 #include "fwx_config.h"
+#include "fwx_system.h"
 #include "fwx.h"
 #include "fwx_user.h"
 #include "fwx_utils.h"
@@ -2557,6 +2558,7 @@ static int is_invalid_visit_url(const char *url)
 }
 
 void update_client_visiting_info(void){
+    int show_visit_url = fwx_get_show_visit_url();
     char line_buf[256] = {0};
     char mac_buf[32] = {0};
     char url_buf[MAX_REPORT_URL_LEN] = {0};
@@ -2580,7 +2582,7 @@ void update_client_visiting_info(void){
         client_node_t *node = find_client_node(mac_buf);
         if (!node)
             continue;
-        if (is_invalid_visit_url(url_buf)) {
+        if (!show_visit_url || is_invalid_visit_url(url_buf)) {
             node->visiting_url[0] = '\0';
         }
         else {

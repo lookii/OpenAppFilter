@@ -5,7 +5,7 @@
 */
 #ifndef __FWX_H__
 #define __FWX_H__
-#define FWX_VERSION "7.0.2"
+#define FWX_VERSION "7.1.0"
 #define MAX_FWX_NL_MSG_LEN 1024
 #define FWX_TIMER_INTERVAL 1
 #define MAX_HOST_LEN 40
@@ -214,6 +214,7 @@ typedef struct flow_info{
 	u_int16_t total_len;
 	u_int8_t client_hello;
 	af_feature_node_t *feature;
+	u_int8_t url_bypass;
 }flow_info_t;
 
 

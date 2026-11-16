@@ -1,0 +1,33 @@
+# ---- 构建产物 / 中间文件 ----
+out/
+build/
+*.o
+*.ko
+*.d
+*.a
+*.so
+*.pyc
+__pycache__/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ---- apk / 压缩包（不要提交构建产物）----
+*.apk
+*.apk.sha256
+*.tar.zst
+*.tar.gz
+*.zip
+
+# ---- SDK / 本地环境 ----
+openwrt-sdk-*/
+sdk/
+.build-env/
+.workbuddy/
+
+# ---- 例外：允许提交的语言包素材与清单 ----
+!prebuilt/*.lmo
+# `*.d` 会连带忽略 keep.d 目录，必须重新包含（CI 打包 appfilter 需要该文件）
+!**/keep.d/
+!**/keep.d/**

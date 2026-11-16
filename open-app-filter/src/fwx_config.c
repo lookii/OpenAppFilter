@@ -123,6 +123,17 @@ int get_base_app_count(void)
     return g_base_app_count;
 }
 
+int is_builtin_appid(int id)
+{
+    int i;
+
+    for (i = 0; i < g_base_app_count; i++) {
+        if (app_name_table[i].id == id)
+            return 1;
+    }
+    return 0;
+}
+
 void init_app_name_table(void)
 {
     char line_buf[2048] = {0};

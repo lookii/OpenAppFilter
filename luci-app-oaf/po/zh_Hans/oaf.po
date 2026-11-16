@@ -163,7 +163,7 @@ msgid "End Time2"
 msgstr "结束时间2"
 
 msgid "App Name"
-msgstr "App名称"
+msgstr "APP名称"
 
 msgid "Visit Time"
 msgstr "访问时间"
@@ -197,9 +197,6 @@ msgstr "生效用户"
 
 msgid "Effective Time"
 msgstr "生效时间"
-
-msgid "Basic Settings"
-msgstr "基本设置"
 
 msgid "Please close the modules that may conflict, such as acceleration, ad filtering, and multi-dial"
 msgstr "请先关闭加速、广告过滤、多拨等可能冲突的模块"
@@ -421,12 +418,6 @@ msgstr "APP统计"
 msgid "Access Records"
 msgstr "访问记录"
 
-msgid "App Name"
-msgstr "APP名称"
-
-msgid "Start Time"
-msgstr "开始时间"
-
 msgid "Start Visit Time"
 msgstr "开始访问时间"
 
@@ -496,9 +487,6 @@ msgstr "应用选择"
 msgid "View"
 msgstr "查看"
 
-msgid "Advanced Settings"
-msgstr "高级设置"
-
 msgid "Feature Library Update"
 msgstr "特征库升级"
 
@@ -509,7 +497,7 @@ msgid "If the App you want is not in the list, you can upgrade the feature libra
 msgstr "如果列表中没有你想要的App，可以通过升级官网的特征库或者自定义App"
 
 msgid "Effective Users"
-msgstr "生效的用户"
+msgstr "生效用户"
 
 msgid "No Users Available"
 msgstr "暂无用户"
@@ -667,9 +655,6 @@ msgstr "时间段"
 msgid "Time Range"
 msgstr "时间范围"
 
-msgid "Weekdays"
-msgstr "星期"
-
 msgid "Weekday"
 msgstr "星期"
 
@@ -679,20 +664,11 @@ msgstr "全部"
 msgid "No time periods configured"
 msgstr "未配置时间段"
 
-msgid "Effective Users"
-msgstr "生效用户"
-
 msgid "Dynamic time mode: Whitelist users are excluded"
 msgstr "动态时间模式：已排除白名单用户"
 
 msgid "No users found"
 msgstr "未找到用户"
-
-msgid "Time Configuration"
-msgstr "时间配置"
-
-msgid "User Configuration"
-msgstr "用户配置"
 
 msgid "Loading..."
 msgstr "加载中..."
@@ -803,7 +779,7 @@ msgid "Time limit not enabled for today"
 msgstr "今日未启用时间限制"
 
 msgid "Active Users"
-msgstr "生效用户数"
+msgstr "活跃用户"
 
 msgid "AM"
 msgstr "上午"
@@ -894,9 +870,6 @@ msgstr "近30天"
 
 msgid "Active Terminals"
 msgstr "活跃终端"
-
-msgid "Active Users"
-msgstr "活跃用户"
 
 msgid "Online App"
 msgstr "在线应用"
@@ -1962,3 +1935,370 @@ msgstr "暂无数据"
 
 msgid "Download"
 msgstr "下载"
+
+msgid "Selected Users"
+msgstr "指定用户"
+
+msgid "URL Access Records"
+msgstr "URL访问记录"
+
+msgid "URL access record is not enabled. Please go to Advanced Settings to enable it."
+msgstr "URL访问记录未开通，请前往高级设置开通。"
+
+msgid "Go to Enable"
+msgstr "去开通"
+
+msgid "Visited Domain"
+msgstr "访问域名"
+
+msgid "Add to Blacklist"
+msgstr "加入黑名单"
+
+# URL 访问记录行内按钮：比「添加到白名单」更短，避免卡片里挤成两行
+msgid "Add Blacklist"
+msgstr "加黑名单"
+
+msgid "Add Whitelist"
+msgstr "加白名单"
+
+
+# 界面改进新增文案
+msgid "Add to whitelist"
+msgstr "加入白名单"
+
+msgid "Add user"
+msgstr "添加用户"
+
+msgid "Backup and Restore"
+msgstr "备份与恢复"
+
+msgid "Check whether a sample request would match your saved custom rules, and see the first matching feature or the reason for each miss."
+msgstr "检查一条示例请求是否会命中已保存的自定义规则，并显示首个匹配的特征或每条未命中的原因。"
+
+msgid "Configuration Backup"
+msgstr "配置备份"
+
+msgid "Domain / SNI"
+msgstr "域名 / SNI"
+
+msgid "Domain Match Mode"
+msgstr "域名匹配模式"
+
+msgid "Exact domain"
+msgstr "精确域名"
+
+msgid "Export"
+msgstr "导出"
+
+msgid "Export failed"
+msgstr "导出失败"
+
+msgid "Export or restore all OAF settings, including filter rules, access control rules, whitelists, user nicknames and system options. Internet audit history is not included."
+msgstr "导出或恢复全部 OAF 设置，包括过滤规则、上网控制规则、白名单、用户昵称和系统选项。不包含上网审计历史数据。"
+
+msgid "Import"
+msgstr "导入"
+
+msgid "Import failed"
+msgstr "导入失败"
+
+msgid "Invalid JSON file"
+msgstr "JSON 文件无效"
+
+msgid "Invalid backup file"
+msgstr "备份文件无效"
+
+msgid "Manual mode"
+msgstr "手动模式"
+
+msgid "No match"
+msgstr "未命中"
+
+msgid "Regular expression"
+msgstr "正则表达式"
+
+msgid "Replace all current OAF settings with this backup? This cannot be undone."
+msgstr "用此备份替换当前全部 OAF 设置？此操作不可撤销。"
+
+msgid "Rule Hit Test"
+msgstr "规则命中测试"
+
+msgid "Run Test"
+msgstr "运行测试"
+
+msgid "Select Users"
+msgstr "选择用户"
+
+msgid "Select device"
+msgstr "选择设备"
+
+msgid "Settings imported"
+msgstr "设置已导入"
+
+msgid "Show Visit URL"
+msgstr "显示访问链接"
+
+msgid "Substring (default)"
+msgstr "子串匹配（默认）"
+
+msgid "The user's basic data and real-time data are stored in this directory, such as online duration, traffic usage and other information. The default is a temporary directory and will not be retained after reboot. You can change it to a persistent directory, such as /etc/fwx."
+msgstr "用户的基础数据与实时数据存放在此目录，例如在线时长、流量使用等。默认使用临时目录，重启后不会保留。可改为持久化目录，例如 /etc/fwx。"
+
+msgid "When enabled, show each device's currently visited URL on the user detail page. Disabled by default for privacy."
+msgstr "启用后，在用户详情页显示每个设备当前访问的链接。出于隐私考虑默认关闭。"
+
+msgid "exact matches the whole host; regex uses the kernel regex subset (. * + ? [] ^ $)."
+msgstr "精确模式匹配整个主机名；正则模式使用内核正则子集（. * + ? [] ^ $）。"
+
+msgid "features checked"
+msgstr "已检查特征数"
+
+
+msgid "URL access record is not available yet."
+msgstr "URL 访问记录功能尚未启用。"
+
+msgid "APP访问记录"
+msgstr "APP访问记录"
+
+msgid "Enable URL access records"
+msgstr "开启URL访问记录"
+
+msgid "Retention days"
+msgstr "保留天数"
+
+msgid "URL Access Record Settings"
+msgstr "URL访问记录设置"
+
+msgid "Normal"
+msgstr "正常"
+
+msgid "Blocked"
+msgstr "已阻断"
+
+msgid "Allowed"
+msgstr "已放行"
+
+msgid "Deleted"
+msgstr "已删除"
+
+msgid "URL Black/White List"
+msgstr "URL黑白名单"
+
+msgid "No entries yet. Add domains from URL Access Records."
+msgstr "暂无名单，可在「URL访问记录」中把域名加入黑名单或白名单。"
+
+msgid "Domains added for this device. Blacklist blocks access; whitelist bypasses filtering. Changes take effect immediately."
+msgstr "这里列出该设备已加入的域名。黑名单阻断访问，白名单绕过过滤规则，删除后立即生效。"
+
+msgid "Enable for This Device"
+msgstr "为当前设备开启"
+
+msgid "URL access record is enabled, but this device is not in the list yet."
+msgstr "URL访问记录已开启，但当前设备还未加入记录列表。"
+
+msgid "URL access record enabled for this device"
+msgstr "已为当前设备开启URL访问记录"
+
+msgid "This domain is already in the blacklist."
+msgstr "该域名已在黑名单中。"
+
+msgid "This domain is already in the whitelist."
+msgstr "该域名已在白名单中。"
+
+msgid "This domain is already in the whitelist. Adding it to the blacklist will remove it from the whitelist. Continue?"
+msgstr "该域名已在白名单中，加入黑名单会自动从白名单移除。是否继续？"
+
+msgid "This domain is already in the blacklist. Adding it to the whitelist will remove it from the blacklist. Continue?"
+msgstr "该域名已在黑名单中，加入白名单会自动从黑名单移除。是否继续？"
+
+msgid "Moved to the blacklist"
+msgstr "已加入黑名单"
+
+msgid "Moved to the whitelist"
+msgstr "已加入白名单"
+
+msgid "Mobile App Management"
+msgstr "手机 App 管理"
+
+msgid "Every Day"
+msgstr "每天"
+
+msgid "Workdays"
+msgstr "工作日"
+
+msgid "Weekend"
+msgstr "周末"
+
+msgid "No matching devices"
+msgstr "没有匹配的终端"
+
+msgid "Clear search"
+msgstr "清除搜索"
+
+msgid "Save All Settings"
+msgstr "保存全部设置"
+
+msgid "Saving for this section is merged into the bottom save button."
+msgstr "本分区的保存已并入底部「保存全部设置」，不用再单独点一次。"
+
+msgid "Users in the whitelist are not subject to control. Devices with random MAC addresses should be added here."
+msgstr "白名单里的终端不受本类管控，随机 MAC 的设备建议加进来。"
+
+msgid "No rules are applied to this device yet. Add one in App Filter or Internet Control."
+msgstr "该设备暂未关联任何规则，可在「应用过滤」或「上网控制」中添加。"
+
+msgid "Go to URL Access Records"
+msgstr "去 URL访问记录"
+
+msgid "%d matched"
+msgstr "匹配 %d 个"
+
+msgid "%d selected"
+msgstr "已选 %d 个"
+
+msgid "Action"
+msgstr "动作"
+
+msgid "Add"
+msgstr "添加"
+
+msgid "All Status"
+msgstr "全部状态"
+
+msgid "Block \"%s\"? This terminal will lose Internet access immediately."
+msgstr "拉黑「%s」？该终端将立即断网。"
+
+msgid "Clear all"
+msgstr "清空本类"
+
+msgid "Copy"
+msgstr "复制"
+
+msgid "Delete rule \"%s\"? It applies to %d device(s)."
+msgstr "删除规则「%s」？该规则对 %d 个对象生效。"
+
+msgid "Discard Changes"
+msgstr "撤销更改"
+
+msgid "Discard unsaved changes and reload current settings?"
+msgstr "放弃未保存的更改并重新加载当前设置？"
+
+msgid "Enter a domain, e.g. example.com or *.example.com"
+msgstr "输入域名，如 example.com 或 *.example.com"
+
+msgid "Export CSV"
+msgstr "导出 CSV"
+
+msgid "Exported %d record(s)"
+msgstr "已导出 %d 条记录"
+
+msgid "Failed to change rule status"
+msgstr "修改规则状态失败"
+
+msgid "Failed to copy rule"
+msgstr "复制规则失败"
+
+msgid "Go to App Filter"
+msgstr "去应用过滤"
+
+msgid "Last 7 Days"
+msgstr "最近 7 天"
+
+msgid "Matched %d device(s)"
+msgstr "匹配 %d 台终端"
+
+msgid "Matched %d of %s entry(s)"
+msgstr "匹配 %d / %s 条"
+
+msgid "Matched %d of %s rule(s)"
+msgstr "匹配 %d / %s 条规则"
+
+msgid "Matched %d record(s)"
+msgstr "匹配 %d 条记录"
+
+msgid "No app matches the keyword"
+msgstr "没有匹配的应用"
+
+msgid "No device matches the condition"
+msgstr "没有符合条件的终端"
+
+msgid "No entries yet. Enter a domain above, or add one from URL Access Records."
+msgstr "暂无条目，可在上方输入域名，或从 URL访问记录 添加。"
+
+msgid "No entry matches the keyword"
+msgstr "没有匹配的条目"
+
+msgid "No rule matches the current filter"
+msgstr "没有匹配当前筛选条件的规则"
+
+msgid "Online only"
+msgstr "只看在线"
+
+msgid "Other"
+msgstr "其它"
+
+msgid "Please enter a valid domain, e.g. example.com or *.example.com"
+msgstr "请输入合法域名，如 example.com 或 *.example.com"
+
+msgid "Rows per page"
+msgstr "每页条数"
+
+msgid "Rule copied and disabled by default"
+msgstr "规则已复制，默认停用"
+
+msgid "Rule disabled"
+msgstr "规则已停用"
+
+msgid "Rule enabled"
+msgstr "规则已启用"
+
+msgid "Search app name or pinyin initials"
+msgstr "搜索应用名称或拼音首字母"
+
+msgid "Search app, device or IP"
+msgstr "搜索应用、终端或 IP"
+
+msgid "Search device, MAC or IP"
+msgstr "搜索终端名称、MAC 或 IP"
+
+msgid "Search rule or device"
+msgstr "搜索规则或终端"
+
+msgid "Search rule, device or app"
+msgstr "搜索规则、终端或应用"
+
+msgid "Search terminal MAC"
+msgstr "搜索终端 MAC"
+
+msgid "Select all"
+msgstr "全选本类"
+
+msgid "Shown %d of %s device(s)"
+msgstr "显示 %d / %s 台终端"
+
+msgid "Total %d rule(s)"
+msgstr "共 %d 条规则"
+
+msgid "Wildcards are supported, e.g. *.example.com. A domain can only be in one list; adding it to the other list moves it."
+msgstr "支持通配符，如 *.example.com。同一域名只能在一个名单中，加入另一个名单会自动移除。"
+
+msgid "You have unsaved changes"
+msgstr "有未保存的更改"
+
+msgid "You have unsaved changes. Leave anyway?"
+msgstr "有未保存的更改，仍要离开吗？"
+
+msgid "All Devices"
+msgstr "全部终端"
+
+msgid "Full Duplex"
+msgstr "全双工"
+
+msgid "Half Duplex"
+msgstr "半双工"
+
+msgid "APP Access Records"
+msgstr "APP访问记录"
+
+msgid "Apply"
+msgstr "应用"

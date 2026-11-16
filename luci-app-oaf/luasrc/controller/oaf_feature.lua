@@ -14,6 +14,7 @@ function index()
 	entry({"admin", "services", "oaf", "feature", "custom_list"}, call("get_custom_feature_list"), nil).leaf = true
 	entry({"admin", "services", "oaf", "feature", "custom_class_list"}, call("get_custom_feature_class_list"), nil).leaf = true
 	entry({"admin", "services", "oaf", "feature", "custom_save"}, call("set_custom_feature_list"), nil).leaf = true
+	entry({"admin", "services", "oaf", "feature", "custom_test"}, call("test_custom_feature"), nil).leaf = true
 end
 
 function get_feature_info()
@@ -115,4 +116,20 @@ function get_feature_class_list()
 	else
 		http.write(json.stringify({class_list = {}}))
 	end
+end
+
+
+-- P1-1: dry-run matcher. Accepts the same sample fields as the ubus API.
+function test_custom_feature()
+	local json = require "luci.jsonc"
+	local http = require "luci.http"
+	local data_str = http.formvalue("data")
+	local ok, data_obj = pcall(json.parse, data_str or "")
+
+	if not ok or type(data_obj) ~= "table" then
+		http.prepare_content("application/json")
+		http.write(json.stringify({code = 4000, data = {error = "invalid request data"}}))
+		return
+	end
+	write_fwx_response("test_custom_feature", data_obj)
 end

@@ -24,6 +24,10 @@ function index()
 	entry({"admin", "services", "oaf", "api", "get_user_basic_info"}, call("get_user_basic_info"), nil).leaf = true
 	entry({"admin", "services", "oaf", "api", "get_online_offline_records"}, call("get_online_offline_records"), nil).leaf = true
 	entry({"admin", "services", "oaf", "api", "get_user_parental_control_rules"}, call("get_user_parental_control_rules"), nil).leaf = true
+	entry({"admin", "services", "oaf", "api", "user", "get_url_records"}, call("get_url_records"), nil).leaf = true
+	entry({"admin", "services", "oaf", "api", "user", "add_url_list"}, call("add_url_list"), nil).leaf = true
+	entry({"admin", "services", "oaf", "api", "user", "del_url_list"}, call("del_url_list"), nil).leaf = true
+	entry({"admin", "services", "oaf", "api", "user", "get_url_list"}, call("get_url_list"), nil).leaf = true
 end
 
 function get_hostname_by_mac(dst_mac)
@@ -448,5 +452,69 @@ function get_user_basic_info(mac)
 		luci.http.write_json(resp_obj.data)
 	else
 		luci.http.write_json({})
+	end
+end
+
+function get_url_records()
+	local utl = require "luci.util"
+	luci.http.prepare_content("application/json")
+	local req = { api = "get_url_records", data = {
+		mac = luci.http.formvalue("mac") or "",
+		start_time = tonumber(luci.http.formvalue("start_time")) or 0,
+		end_time = tonumber(luci.http.formvalue("end_time")) or 0,
+		page = tonumber(luci.http.formvalue("page")) or 1,
+		page_size = tonumber(luci.http.formvalue("page_size")) or 15
+	}}
+	local resp = utl.ubus("fwx", "common", req)
+	if resp and (resp.code == 2000 or resp.code == 0) then
+		luci.http.write_json({code = 0, data = resp.data or {}})
+	else
+		luci.http.write_json({code = 1, message = "failed", data = {}})
+	end
+end
+
+function add_url_list()
+	local utl = require "luci.util"
+	luci.http.prepare_content("application/json")
+	local req = { api = "add_url_list", data = {
+		mac = luci.http.formvalue("mac") or "",
+		url = luci.http.formvalue("url") or "",
+		type = luci.http.formvalue("type") or ""
+	}}
+	local resp = utl.ubus("fwx", "common", req)
+	if resp and (resp.code == 2000 or resp.code == 0) then
+		luci.http.write_json({code = 0, data = resp.data or {}})
+	else
+		luci.http.write_json({code = 1, message = "failed", data = {}})
+	end
+end
+
+function del_url_list()
+	local utl = require "luci.util"
+	luci.http.prepare_content("application/json")
+	local req = { api = "del_url_list", data = {
+		mac = luci.http.formvalue("mac") or "",
+		url = luci.http.formvalue("url") or "",
+		type = luci.http.formvalue("type") or ""
+	}}
+	local resp = utl.ubus("fwx", "common", req)
+	if resp and (resp.code == 2000 or resp.code == 0) then
+		luci.http.write_json({code = 0, data = resp.data or {}})
+	else
+		luci.http.write_json({code = 1, message = "failed", data = {}})
+	end
+end
+
+function get_url_list()
+	local utl = require "luci.util"
+	luci.http.prepare_content("application/json")
+	local req = { api = "get_url_list", data = {
+		mac = luci.http.formvalue("mac") or ""
+	}}
+	local resp = utl.ubus("fwx", "common", req)
+	if resp and (resp.code == 2000 or resp.code == 0) then
+		luci.http.write_json({code = 0, data = resp.data or {}})
+	else
+		luci.http.write_json({code = 1, message = "failed", data = {}})
 	end
 end

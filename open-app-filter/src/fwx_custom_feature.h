@@ -15,5 +15,9 @@ void fwx_custom_feature_append_class_apps(struct json_object **class_map,
 struct json_object *fwx_api_get_custom_feature(struct json_object *req_obj);
 struct json_object *fwx_api_get_custom_feature_class_list(struct json_object *req_obj);
 struct json_object *fwx_api_set_custom_feature(struct json_object *req_obj);
+/* P1-1: dry-run matcher. Input sample fields (domain/uri/dest_port/protocol/
+ * payload) are matched against the saved custom feature set, or against an
+ * optional "app_list" submitted in the same shape as set_custom_feature. */
+struct json_object *fwx_api_test_custom_feature(struct json_object *req_obj);
 
 #endif

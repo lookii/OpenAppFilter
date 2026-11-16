@@ -1,0 +1,6 @@
+#!/bin/sh
+[ -n "${IPKG_INSTROOT}" ] || {
+	rm -f /tmp/luci-indexcache.*
+	rm -rf /tmp/luci-modulecache/
+	exit 0
+}

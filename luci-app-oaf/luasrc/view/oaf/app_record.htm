@@ -1,5 +1,6 @@
 <%+header%>
 <link rel="stylesheet" href="<%=resource%>/oaf/css/common.css">
+<script src="<%=resource%>/oaf/common.js"></script>
 <script src="<%=resource%>/oaf/jquery-3.7.1.min.js"></script>
 <script src="<%=resource%>/oaf/oaf_icon.js"></script>
 
@@ -11,6 +12,31 @@
         </ul>
 
         <div id="tab-online-records" class="tab-body active">
+            <div class="oaf-toolbar" id="online-toolbar" data-filter-title="<%:Filter%>" data-reset-text="<%:Reset%>" data-apply-text="<%:Apply%>">
+                <div class="oaf-toolbar-search">
+                    <input type="search" id="online-search" placeholder="<%:Search app, device or IP%>" autocomplete="off">
+                </div>
+                <div class="oaf-toolbar-filters">
+                    <select data-filter="status" data-default="all" data-label="<%:Status%>">
+                        <option value="all"><%:All Status%></option>
+                        <option value="online"><%:Online%></option>
+                        <option value="offline"><%:Offline%></option>
+                        <option value="filtered"><%:Filtered%></option>
+                        <option value="unfiltered"><%:Unfiltered%></option>
+                    </select>
+                </div>
+                <div class="oaf-toolbar-size" data-label="<%:Rows per page%>"><%:Rows per page%>
+                    <select id="online-page-size">
+                        <option value="15">15</option>
+                        <option value="30">30</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+                <button type="button" class="oaf-toolbar-btn-filter"><span><%:Filter%></span><span class="oaf-filter-count">0</span></button>
+                <span class="oaf-toolbar-hint" id="online-hint"></span>
+                <button type="button" class="cbi-button" id="btn-online-export"><%:Export CSV%></button>
+            </div>
             <table class="table cbi-section-table" id="online-record-table" style="table-layout: fixed; width: 100%;">
                 <colgroup>
                     <col class="record-app-col">
@@ -42,12 +68,26 @@
         </div>
 
         <div id="tab-history-records" class="tab-body">
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0 12px 0;">
-                <input id="q-history-mac" class="cbi-input-text" type="text" placeholder="<%:Terminal MAC%>" style="width:200px;">
-                <input id="q-history-start" class="cbi-input-text" type="datetime-local" style="width:210px;">
-                <input id="q-history-end" class="cbi-input-text" type="datetime-local" style="width:210px;">
+            <div class="oaf-toolbar" id="history-toolbar" data-filter-title="<%:Filter%>" data-reset-text="<%:Reset%>" data-apply-text="<%:Apply%>">
+                <div class="oaf-toolbar-search">
+                    <input type="search" id="q-history-mac" placeholder="<%:Search terminal MAC%>" autocomplete="off">
+                </div>
+                <div class="oaf-toolbar-filters">
+                    <input type="datetime-local" id="q-history-start" data-filter-input="start" data-label="<%:Start Time%>">
+                    <input type="datetime-local" id="q-history-end" data-filter-input="end" data-label="<%:End Time%>">
+                </div>
+                <div class="oaf-toolbar-size" data-label="<%:Rows per page%>"><%:Rows per page%>
+                    <select id="history-page-size">
+                        <option value="15">15</option>
+                        <option value="30">30</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+                <button type="button" class="oaf-toolbar-btn-filter"><span><%:Filter%></span><span class="oaf-filter-count">0</span></button>
                 <button type="button" class="cbi-button cbi-button-action" id="btn-history-search"><%:Search%></button>
                 <button type="button" class="cbi-button" id="btn-history-reset"><%:Reset%></button>
+                <button type="button" class="cbi-button" id="btn-history-export"><%:Export CSV%></button>
             </div>
 
             <table class="table cbi-section-table" id="history-record-table" style="table-layout: fixed; width: 100%;">
@@ -118,6 +158,7 @@
 #online-record-table .th, #history-record-table .th {
     padding-top: 12px;
     padding-bottom: 12px;
+    text-align: center !important;
 }
 #online-record-table .td, #history-record-table .td {
     padding-top: 12px;
@@ -137,17 +178,19 @@
 }
 #online-record-table .record-mac-col,
 #history-record-table .record-mac-col {
-    width: 15%;
+    width: 11%;
 }
 #online-record-table .record-hostname-col,
-#history-record-table .record-hostname-col,
+#history-record-table .record-hostname-col {
+    width: 15%;
+}
 #online-record-table .record-nickname-col,
 #history-record-table .record-nickname-col {
-    width: 11%;
+    width: 10%;
 }
 #online-record-table .record-time-col,
 #history-record-table .record-time-col {
-    width: 15%;
+    width: 12%;
 }
 #online-record-table .record-duration-col,
 #history-record-table .record-duration-col {
@@ -195,6 +238,128 @@
     };
     var online_state = { page: 1, page_size: 15, total_num: 0, total_page: 1 };
     var history_state = { page: 1, page_size: 15, total_num: 0, total_page: 1 };
+    /* P1-5：客户端筛选状态（激活时拉全量后前端过滤，分页隐藏） */
+    var online_filter = { text: '', status: 'all' };
+    var history_filter = { text: '' };
+
+    function online_filter_active() {
+        return !!(online_filter.text || online_filter.status !== 'all');
+    }
+
+    function filter_online_rows(list) {
+        var q = String(online_filter.text || '').toLowerCase();
+        return (list || []).filter(function(item) {
+            var app_id = item.id || item.appid || '';
+            var app_name = app_display_name(app_id, item.name || item.appname || '');
+            var isOnline = parseInt(item.online || 0, 10) === 1;
+            var act = parseInt(item.act || item.latest_action || 0, 10);
+            if (online_filter.status === 'online' && !isOnline) { return false; }
+            if (online_filter.status === 'offline' && isOnline) { return false; }
+            if (online_filter.status === 'filtered' && act !== 1) { return false; }
+            if (online_filter.status === 'unfiltered' && act === 1) { return false; }
+            if (!q) { return true; }
+            var hay = [app_name, item.mac || '', item.hostname || '', item.nickname || '', item.ip || '']
+                .join(' ').toLowerCase();
+            return hay.indexOf(q) >= 0;
+        });
+    }
+
+    /* 历史记录的搜索框此前只存状态、没参与过滤；这里与在线记录保持一致，
+       激活时拉全量前端过滤并隐藏分页，导出的集合才和列表看到的一致。 */
+    function history_filter_active() {
+        return !!history_filter.text;
+    }
+
+    function filter_history_rows(list) {
+        var q = String(history_filter.text || '').toLowerCase();
+        if (!q) return list || [];
+        return (list || []).filter(function(item) {
+            var app_id = item.id || item.appid || '';
+            var app_name = app_display_name(app_id, item.name || item.appname || '');
+            var hay = [app_name, item.mac || '', item.hostname || '', item.nickname || '', item.ip || '']
+                .join(' ').toLowerCase();
+            return hay.indexOf(q) >= 0;
+        });
+    }
+
+    /* 逐页拉全量。后端 fwx_record.c 把 page_size 硬截到 200，请求 1000 也
+       只会返回 200 条；这里按 200 分页，并用 total_page 判断是否继续，不能
+       拿返回条数去比一个永远达不到的 pageSize，否则导出永远停在第一页。 */
+    var RECORD_PAGE_SIZE = 200;
+    var RECORD_MAX_PAGES = 250;
+    function fetch_all_records(url, params, onDone) {
+        var all = [];
+        var page = 1;
+        function step() {
+            var p = $.extend({}, params, { page: page, page_size: RECORD_PAGE_SIZE });
+            new XHR().get(url, p, function(x, data) {
+                var resp = data || {};
+                var list = resp.list || [];
+                all = all.concat(list);
+                var totalPage = parseInt(resp.total_page || 0, 10);
+                var hasMore = totalPage > 0
+                    ? page < totalPage
+                    : list.length >= RECORD_PAGE_SIZE;
+                if (hasMore && list.length && page < RECORD_MAX_PAGES) {
+                    page++;
+                    step();
+                } else {
+                    onDone(all);
+                }
+            }, function() { onDone(all); });
+        }
+        step();
+    }
+
+    /* P1-8：按当前筛选条件导出 CSV（列名中文，UTF-8 BOM）。
+       拉全量后再过滤，保证导出的就是筛选后的全部记录，而不是第一页。 */
+    function export_app_records(kind) {
+        var isHistory = kind === 'history';
+        var url = isHistory
+            ? "<%=url('admin/services/oaf/api/app_record/get_app_history_records')%>"
+            : "<%=url('admin/services/oaf/api/app_record/get_active_app_records')%>";
+        var params = {};
+        if (isHistory) {
+            params.mac = $("#q-history-mac").val() || "";
+            params.start_time = get_ts_from_input("#q-history-start");
+            params.end_time = get_ts_from_input("#q-history-end");
+        }
+        fetch_all_records(url, params, function(all) {
+            var list = all || [];
+            if (isHistory) {
+                list = filter_history_rows(list);
+            } else if (online_filter_active()) {
+                list = filter_online_rows(list);
+            }
+            if (!list.length) {
+                if (typeof showCommonModal === 'function') { showCommonModal('<%:No records%>', 2000); }
+                return;
+            }
+            if (typeof oafCsvExport !== 'function') { return; }
+            var rows = list.map(function(item) {
+                var app_id = item.id || item.appid || '';
+                return [
+                    app_display_name(app_id, item.name || item.appname || ''),
+                    item.mac || '',
+                    item.hostname || '',
+                    item.nickname || '',
+                    format_time(item.ft || item.first_time || 0),
+                    format_time(item.lt || item.latest_time || 0),
+                    format_duration(item.tt || item.total_time || 0),
+                    parseInt(item.online || 0, 10) === 1 ? text.online : text.offline,
+                    parseInt(item.act || item.latest_action || 0, 10) === 1 ? text.filtered : text.unfiltered
+                ];
+            });
+            var stamp = new Date().toISOString().slice(0, 10);
+            var name = (isHistory ? 'app-records-history-' : 'app-records-online-') + stamp + '.csv';
+            oafCsvExport(name, ['<%:App%>', 'MAC', '<%:Hostname%>', '<%:Nickname%>',
+                '<%:First Visit%>', '<%:Last Visit%>', '<%:Duration%>',
+                '<%:Online%>', '<%:Filter Status%>'], rows);
+            if (typeof oafToast === 'function') {
+                oafToast('<%:Exported %d record(s)%>'.replace('%d', rows.length));
+            }
+        });
+    }
     var history_loaded = false;
 
     function pad2(n) {
@@ -231,15 +396,17 @@
     }
 
     function render_filter_status(act) {
+        /* P2-17：「未过滤」用中性蓝，避免与「安全」混淆；「已过滤」用橙提示命中规则 */
         return parseInt(act || 0, 10) === 1
-            ? '<span style="color:#F44336;">' + text.filtered + '</span>'
-            : '<span style="color:#22c55e;">' + text.unfiltered + '</span>';
+            ? '<span style="color:#b54708;">' + text.filtered + '</span>'
+            : '<span class="oaf-status-text-unlimited"><span class="oaf-status-dot"></span>' + text.unfiltered + '</span>';
     }
 
     function render_online_status(online) {
+        /* P2-17：在线=绿、离线=灰，红色只留给异常与危险 */
         return parseInt(online || 0, 10) === 1
-            ? '<span style="color:#22c55e;">' + text.online + '</span>'
-            : '<span style="color:#F44336;">' + text.offline + '</span>';
+            ? '<span class="oaf-status-text-online"><span class="oaf-status-dot"></span>' + text.online + '</span>'
+            : '<span class="oaf-status-text-offline"><span class="oaf-status-dot"></span>' + text.offline + '</span>';
     }
 
     function app_display_name(app_id, app_name) {
@@ -267,7 +434,10 @@
         var $tb = $("#" + table_id);
         $tb.find("tr:gt(0)").remove();
         if (!Array.isArray(list) || list.length === 0) {
-            $tb.append('<tr class="tr"><td class="td" colspan="9"><em><br />' + text.noData + '</em></td></tr>');
+            $tb.append('<tr class="tr"><td class="td" colspan="9"><div class="oaf-empty-state">' +
+                '<span class="oaf-empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span>' +
+                '<span class="oaf-empty-text">' + text.noData + '</span>' +
+                '</div></td></tr>');
             return;
         }
         list.forEach(function(item) {
@@ -357,41 +527,59 @@
     }
 
     function load_online_records() {
+        var active = online_filter_active();
         new XHR().get("<%=url('admin/services/oaf/api/app_record/get_active_app_records')%>", {
-            page: online_state.page,
-            page_size: online_state.page_size
+            page: active ? 1 : online_state.page,
+            page_size: active ? 5000 : online_state.page_size
         }, function(x, data) {
             var resp = data || {};
-            online_state.total_num = parseInt(resp.total_num || 0, 10);
-            online_state.total_page = parseInt(resp.total_page || 1, 10);
-            online_state.page = parseInt(resp.page || online_state.page, 10);
+            var list = resp.list || [];
+            if (active) { list = filter_online_rows(list); }
+            online_state.total_num = active ? list.length : parseInt(resp.total_num || 0, 10);
+            online_state.total_page = active ? 1 : parseInt(resp.total_page || 1, 10);
+            online_state.page = active ? 1 : parseInt(resp.page || online_state.page, 10);
             online_state.page_size = parseInt(resp.page_size || online_state.page_size, 10);
-            render_table("online-record-table", resp.list || []);
-            render_pagination("online-pagination", online_state, function(p) {
-                online_state.page = p;
-                load_online_records();
-            });
+            render_table("online-record-table", list);
+            var $hint = $("#online-hint");
+            if ($hint.length) {
+                $hint.text(active ? '<%:Matched %d record(s)%>'.replace('%d', list.length) : '');
+            }
+            if (active) {
+                $("#online-pagination").html("");
+            } else {
+                render_pagination("online-pagination", online_state, function(p) {
+                    online_state.page = p;
+                    load_online_records();
+                });
+            }
         });
     }
 
     function load_history_records() {
+        var active = history_filter_active();
         new XHR().get("<%=url('admin/services/oaf/api/app_record/get_app_history_records')%>", {
             mac: $("#q-history-mac").val() || "",
             start_time: get_ts_from_input("#q-history-start"),
             end_time: get_ts_from_input("#q-history-end"),
-            page: history_state.page,
-            page_size: history_state.page_size
+            page: active ? 1 : history_state.page,
+            page_size: active ? 5000 : history_state.page_size
         }, function(x, data) {
             var resp = data || {};
-            history_state.total_num = parseInt(resp.total_num || 0, 10);
-            history_state.total_page = parseInt(resp.total_page || 1, 10);
-            history_state.page = parseInt(resp.page || history_state.page, 10);
+            var list = resp.list || [];
+            if (active) { list = filter_history_rows(list); }
+            history_state.total_num = active ? list.length : parseInt(resp.total_num || 0, 10);
+            history_state.total_page = active ? 1 : parseInt(resp.total_page || 1, 10);
+            history_state.page = active ? 1 : parseInt(resp.page || history_state.page, 10);
             history_state.page_size = parseInt(resp.page_size || history_state.page_size, 10);
-            render_table("history-record-table", resp.list || []);
-            render_pagination("history-pagination", history_state, function(p) {
-                history_state.page = p;
-                load_history_records();
-            });
+            render_table("history-record-table", list);
+            if (active) {
+                $("#history-pagination").html("");
+            } else {
+                render_pagination("history-pagination", history_state, function(p) {
+                    history_state.page = p;
+                    load_history_records();
+                });
+            }
         });
     }
 
@@ -424,7 +612,46 @@
         $("#q-history-end").val("");
         history_state.page = 1;
         load_history_records();
+        if (window.__oafHistoryToolbar) { window.__oafHistoryToolbar.emit(true); }
     });
+
+    $("#btn-online-export").on("click", function() {
+        export_app_records('online');
+    });
+
+    $("#btn-history-export").on("click", function() {
+        export_app_records('history');
+    });
+
+    $("#online-page-size").on("change", function() {
+        online_state.page_size = parseInt($(this).val(), 10) || 15;
+        online_state.page = 1;
+        load_online_records();
+    });
+
+    $("#history-page-size").on("change", function() {
+        history_state.page_size = parseInt($(this).val(), 10) || 15;
+        history_state.page = 1;
+        load_history_records();
+    });
+
+    /* P1-5：统一工具栏（搜索 / 状态筛选 / 窄屏抽屉） */
+    if (typeof oafInitToolbar === 'function') {
+        var onlineToolbar = oafInitToolbar('#online-toolbar', function(st) {
+            online_filter.text = st.text || '';
+            online_filter.status = st.status || 'all';
+            online_state.page = 1;
+            load_online_records();
+        });
+
+        var historyToolbar = oafInitToolbar('#history-toolbar', function(st) {
+            /* 搜索框就是 #q-history-mac 本身，不再回写，避免打断输入光标 */
+            history_filter.text = st.text || '';
+            history_state.page = 1;
+            load_history_records();
+        });
+        window.__oafHistoryToolbar = historyToolbar;
+    }
 
     var urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('tab') === 'history') {

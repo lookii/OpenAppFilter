@@ -14,6 +14,8 @@ function index()
 	entry({"admin", "services", "oaf", "api", "app_filter", "add_filter_rule"}, call("add_filter_rule"), nil).leaf = true
 	entry({"admin", "services", "oaf", "api", "app_filter", "update_filter_rule"}, call("update_filter_rule"), nil).leaf = true
 	entry({"admin", "services", "oaf", "api", "app_filter", "delete_filter_rule"}, call("delete_filter_rule"), nil).leaf = true
+	entry({"admin", "services", "oaf", "api", "app_filter", "export_rules"}, call("export_rules"), nil).leaf = true
+	entry({"admin", "services", "oaf", "api", "app_filter", "import_rules"}, call("import_rules"), nil).leaf = true
 	entry({"admin", "services", "oaf", "api", "app_filter", "get_appfilter_whitelist"}, call("get_appfilter_whitelist"), nil).leaf = true
 	entry({"admin", "services", "oaf", "api", "app_filter", "add_appfilter_whitelist"}, call("add_appfilter_whitelist"), nil).leaf = true
 	entry({"admin", "services", "oaf", "api", "app_filter", "del_appfilter_whitelist"}, call("del_appfilter_whitelist"), nil).leaf = true
@@ -368,4 +370,33 @@ function set_app_filter_adv()
 	else
 		luci.http.write_json({code = 1, message = "Failed to save"})
 	end
+end
+
+
+-- Rule backup: export returns the current rule list; import accepts
+-- {mode = "merge"|"replace", rules = [...]}.
+function export_rules()
+	local json = require "luci.jsonc"
+	local utl = require "luci.util"
+	luci.http.prepare_content("application/json")
+	local resp = utl.ubus("fwx", "common", {api = "export_filter_rules", data = {}})
+	luci.http.write_json(resp or {code = 1, message = "export failed"})
+end
+
+function import_rules()
+	local json = require "luci.jsonc"
+	local utl = require "luci.util"
+	luci.http.prepare_content("application/json")
+	local data_str = luci.http.formvalue("data")
+	local ok, data_obj = pcall(json.parse, data_str or "")
+	if not ok or type(data_obj) ~= "table" or type(data_obj.rules) ~= "table" then
+		luci.http.write_json({code = 1, message = "Invalid import data"})
+		return
+	end
+	local mode = data_obj.mode == "replace" and "replace" or "merge"
+	local resp = utl.ubus("fwx", "common", {
+		api = "import_filter_rules",
+		data = { rules = data_obj.rules, mode = mode }
+	})
+	luci.http.write_json(resp or {code = 1, message = "import failed"})
 end

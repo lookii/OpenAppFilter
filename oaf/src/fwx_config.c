@@ -24,6 +24,7 @@
 #include "fwx_mac_filter.h"
 #include "fwx_app_filter.h"
 #include "fwx_client.h"
+#include "fwx_url_record.h"
 static struct mutex fwx_cdev_mutex;
 struct fwx_config_dev
 {
@@ -38,6 +39,63 @@ struct fwx_cdev_file
 	size_t size;
 	char buf[256 << 10];
 };
+
+/* ---- OAF 7.1.0 per-MAC URL list APIs (contract 3.4) ---- */
+static const char *fwx_url_json_str(cJSON *data_obj, const char *key)
+{
+	cJSON *item = data_obj ? cJSON_GetObjectItem(data_obj, key) : NULL;
+
+	/* the bundled k_json.h has no cJSON_IsString(): check type directly */
+	if (!item || item->type != cJSON_String || !item->valuestring)
+		return NULL;
+	return item->valuestring;
+}
+
+static int fwx_api_add_url_list(cJSON *data_obj)
+{
+	const char *mac = fwx_url_json_str(data_obj, "mac");
+	const char *url = fwx_url_json_str(data_obj, "url");
+	const char *type = fwx_url_json_str(data_obj, "type");
+
+	if (!mac || !url || !type) {
+		printk("add_url_list: invalid mac/url/type\n");
+		return -1;
+	}
+	if (strlen(url) > AF_URL_RULE_URL_LEN - 1) {
+		printk("add_url_list: url too long\n");
+		return -1;
+	}
+	return af_url_rule_add(mac, url, type);
+}
+
+static int fwx_api_del_url_list(cJSON *data_obj)
+{
+	const char *mac = fwx_url_json_str(data_obj, "mac");
+	const char *url = fwx_url_json_str(data_obj, "url");
+	const char *type = fwx_url_json_str(data_obj, "type");
+
+	if (!mac || !url || !type) {
+		printk("del_url_list: invalid mac/url/type\n");
+		return -1;
+	}
+	if (strlen(url) > AF_URL_RULE_URL_LEN - 1) {
+		printk("del_url_list: url too long\n");
+		return -1;
+	}
+	return af_url_rule_del(mac, url, type);
+}
+
+static int fwx_api_flush_url_list(cJSON *data_obj)
+{
+	af_url_rule_flush();
+	return 0;
+}
+
+static int fwx_api_dump_url_list(cJSON *data_obj)
+{
+	af_url_rule_dump();
+	return 0;
+}
 
 k_request_item_t k_request_api_list[]={
 	{"add_mac_filter_rule", fwx_api_add_mac_filter_rule},
@@ -58,6 +116,10 @@ k_request_item_t k_request_api_list[]={
 	{"add_record_whitelist", fwx_api_add_record_whitelist},
 	{"del_record_whitelist", fwx_api_del_record_whitelist},
 	{"flush_record_whitelist", fwx_api_flush_record_whitelist},
+	{"add_url_list", fwx_api_add_url_list},
+	{"del_url_list", fwx_api_del_url_list},
+	{"flush_url_list", fwx_api_flush_url_list},
+	{"dump_url_list", fwx_api_dump_url_list},
 };
 
 int fwx_config_handle(char *config, unsigned int len)

@@ -1,0 +1,10 @@
+/etc/fwxd/custom_feature.cfg
+/etc/fwxd/feature.bin
+/etc/init.d/appfilter
+/etc/oaf_version
+/lib/upgrade/keep.d/appfilter
+/usr/bin/hnat.sh
+/usr/bin/oafd
+/usr/bin/rule_manager
+/usr/share/rpcd/acl.d/luci-app-oaf.json
+/etc/config/urlfilter

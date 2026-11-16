@@ -28,6 +28,7 @@
 #include "k_json.h"
 #include "fwx_log.h"
 #include "fwx_client.h"
+#include "fwx_url_record.h"
 extern char *ipv6_to_str(const struct in6_addr *addr, char *str);
 
 extern struct list_head af_client_list_table[MAX_AF_CLIENT_HASH_SIZE];
@@ -537,6 +538,112 @@ static const struct proc_ops af_client_visit_fops = {
 };
 #endif
 
+/* ---- OAF 7.1.0 URL visit event log: /proc/net/af_url_log ---- */
+struct af_url_log_iter_state
+{
+	int count;
+	/* snapshot lives on the heap (open-time kzalloc), never on the stack */
+	af_url_log_line_t snap[AF_URL_LOG_SIZE];
+};
+
+static void *af_url_log_seq_start(struct seq_file *s, loff_t *pos)
+{
+	struct af_url_log_iter_state *st = s->private;
+
+	if (*pos == 0)
+		return SEQ_START_TOKEN;              /* header line */
+	if (*pos > st->count)
+		return NULL;
+	return (void *)(unsigned long)(*pos);    /* entries are 1..count */
+}
+
+static void *af_url_log_seq_next(struct seq_file *s, void *v, loff_t *pos)
+{
+	struct af_url_log_iter_state *st = s->private;
+
+	++(*pos);
+	if (*pos > st->count)
+		return NULL;
+	return (void *)(unsigned long)(*pos);
+}
+
+static void af_url_log_seq_stop(struct seq_file *s, void *v)
+{
+}
+
+static int af_url_log_seq_show(struct seq_file *s, void *v)
+{
+	struct af_url_log_iter_state *st = s->private;
+	af_url_log_line_t *e;
+	char line[AF_URL_LOG_LINE_LEN];
+	loff_t pos;
+
+	if (v == SEQ_START_TOKEN) {
+		seq_printf(s, "Seq Mac Timestamp Action Url\n");
+		return 0;
+	}
+
+	pos = (loff_t)(unsigned long)v;
+	if (pos < 1 || pos > st->count)
+		return 0;
+
+	e = &st->snap[pos - 1];
+	snprintf(line, sizeof(line), "%llu " MAC_FMT " %lu %d %s",
+		 (unsigned long long)e->seq, MAC_ARRAY(e->mac),
+		 e->ts, e->action, e->url);
+	seq_printf(s, "%s\n", line);
+	return 0;
+}
+
+static const struct seq_operations af_url_log_seq_ops = {
+	.start = af_url_log_seq_start,
+	.next = af_url_log_seq_next,
+	.stop = af_url_log_seq_stop,
+	.show = af_url_log_seq_show,
+};
+
+static int af_url_log_open(struct inode *inode, struct file *file)
+{
+	struct af_url_log_iter_state *iter;
+	struct seq_file *seq;
+	int err;
+
+	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
+	if (!iter)
+		return -ENOMEM;
+
+	iter->count = af_url_log_snapshot(iter->snap, AF_URL_LOG_SIZE);
+
+	err = seq_open(file, &af_url_log_seq_ops);
+	if (err) {
+		kfree(iter);
+		return err;
+	}
+
+	seq = file->private_data;
+	seq->private = iter;
+	return 0;
+}
+
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 5, 0)
+static const struct file_operations af_url_log_fops = {
+	.owner = THIS_MODULE,
+	.open = af_url_log_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = seq_release_private,
+};
+#else
+static const struct proc_ops af_url_log_fops = {
+	.proc_flags = PROC_ENTRY_PERMANENT,
+	.proc_read = seq_read,
+	.proc_open = af_url_log_open,
+	.proc_lseek = seq_lseek,
+	.proc_release = seq_release_private,
+};
+#endif
+#define AF_URL_LOG "af_url_log"
+
 int init_af_client_procfs(void)
 {
     struct proc_dir_entry *pde;
@@ -556,6 +663,13 @@ int init_af_client_procfs(void)
 	  return -1;
 	}
 	
+	pde = proc_create(AF_URL_LOG, 0440, net->proc_net, &af_url_log_fops);
+	if (!pde)
+	{
+		AF_ERROR("nf_client url log proc file created error\n");
+		return -1;
+	}
+
 	pde = proc_create(AF_CLIENT_VISIT_LIST, 0440, net->proc_net, &af_client_visit_fops);
 	if (!pde)
 	{
@@ -589,6 +703,7 @@ void finit_af_client_procfs(void)
 
     remove_proc_entry(AF_CLIENT_PROC_STR, net->proc_net);
     remove_proc_entry(AF_VISIT_INFO, net->proc_net);
+    remove_proc_entry(AF_URL_LOG, net->proc_net);
     remove_proc_entry(AF_CLIENT_VISIT_LIST, net->proc_net);
     
 

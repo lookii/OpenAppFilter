@@ -24,6 +24,12 @@ void init_app_name_table(void);
 void init_app_class_name_table(void);
 char *get_app_name_by_id(int id);
 int app_icon_exists_by_id(int id);
+int get_base_app_count(void);
+/* Returns 1 when id is occupied by a built-in feature-library app.
+ * Only the base part of app_name_table is considered; custom apps added by
+ * fwx_custom_feature_add_app_names() are deliberately excluded so that a
+ * reload does not report a conflict with the user's own previous config. */
+int is_builtin_appid(int id);
 
 int appfilter_config_alloc(void);
 

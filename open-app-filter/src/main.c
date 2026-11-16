@@ -27,6 +27,7 @@
 #include "fwx_feature.h"
 #include "fwx_feature_online.h"
 #include "fwx_custom_feature.h"
+#include "fwx_url_record.h"
 
 int current_log_level = LOG_LEVEL_WARN;
 //int current_log_level = LOG_LEVEL_INFO;
@@ -375,6 +376,11 @@ void fwx_timeout_handler(struct uloop_timeout *t)
     
     if (count % 2 == 0) {  
         collect_interface_traffic_rate();
+        fwx_url_record_collect();
+    }
+
+    if (count % 300 == 0) {
+        fwx_url_record_cleanup();
     }
 
     if (fwx_nl_fd.fd < 0){
@@ -527,6 +533,10 @@ int main(int argc, char **argv)
         LOG_ERROR("Failed to start check_thread\n");
         return 1;
     }
+
+    /* Build url_visit_record table and restore per-MAC rules into the kernel
+     * (the kernel rule table is empty right after module load). */
+    fwx_url_record_init();
 
     fwx_nl_fd.fd = -1;
     uloop_timeout_set(&fwx_tm, 5000);

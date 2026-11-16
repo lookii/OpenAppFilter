@@ -1,4 +1,5 @@
 <link rel="stylesheet" href="<%=resource%>/oaf/css/common.css">
+<script src="<%=resource%>/oaf/common.js"></script>
 <% local dsp=require "luci.dispatcher" -%>
 <script type="text/javascript" src="<%=resource%>/oaf/jquery-3.7.1.min.js"></script>
 <script type="text/javascript" src="<%=resource%>/oaf/oaf_icon.js"></script>
@@ -23,6 +24,21 @@
 	let nickname_submitting = false;
 	let nickname_composing = false;
 	let nickname_submit_pending = false;
+	let url_records_cur_page = 1;
+	let url_records_page_size = 15;
+	let url_records_total_num = 0;
+	let url_records_total_page = 1;
+	let url_records_enabled = false;
+	let url_records_list = [];
+	let currentUserInfo = null;
+	const urlRecordActionLabels = {
+		'0': '<%:Normal%>',
+		'1': '<%:Blocked%>',
+		'2': '<%:Allowed%>'
+	};
+	let url_records_filter_ready = false;
+	let url_record_settings = null;
+	let url_lists_data = [];
 	const behavior_weekday_labels = {
 		0: '<%:Sun%>',
 		1: '<%:Mon%>',
@@ -32,6 +48,10 @@
 		5: '<%:Fri%>',
 		6: '<%:Sat%>'
 	};
+
+	function normMac(v) {
+		return String(v || '').toLowerCase().replace(/[-.]/g, '').replace(/:/g, '');
+	}
 
 	function nickname_log(msg, extra) {
 		if (typeof console === 'undefined' || !console.log) return;
@@ -62,7 +82,7 @@
 		document.addEventListener('DOMContentLoaded', function() {
 			var errorDiv = document.createElement('div');
 			errorDiv.style.cssText = 'padding: 20px; text-align: center;';
-			var backUrl = '<%=url("admin/services/oaf/users/list")%>';
+			var backUrl = '<%=url("admin/services/oaf/users")%>';
 			errorDiv.innerHTML = '<h3><%:Missing MAC parameter%></h3><p><a href="' + backUrl + '"><%:Back to User List%></a></p>';
 			document.body.appendChild(errorDiv);
 		});
@@ -110,6 +130,7 @@
 	
 	function render_user_basic_info(user) {
 		if (!user) return;
+		currentUserInfo = user;
 		
 		document.getElementById('basic_info_mac').textContent = user.mac || '--';
 		document.getElementById('basic_info_ip').textContent = user.ip || '--';
@@ -147,6 +168,7 @@
 		} else {
 			statusElement.textContent = '<%:Offline%>';
 		}
+		applyUrlRecordVisibility(currentUserInfo);
 	}
 
 	function validateNickname(nickname) {
@@ -695,7 +717,31 @@
 			]
 		};
 
-		appTimeChart.setOption(option);
+		/* 移动端：饼图居中偏上，图例横向置底并按行折行。
+		   原来用 scroll 模式（翻页），窄屏只显示第一页、翻页箭头几乎点不到，
+		   后面的应用名就"消失"了，这里改成 plain 多行铺开。 */
+		var appChartW = (chartElement && chartElement.clientWidth) || window.innerWidth;
+		if (appChartW <= 560) {
+			option.legend.type = 'plain';
+			option.legend.orient = 'horizontal';
+			option.legend.left = 'center';
+			option.legend.top = 'auto';
+			option.legend.bottom = 4;
+			option.legend.width = '94%';
+			option.legend.itemGap = 8;
+			option.legend.itemWidth = 9;
+			option.legend.itemHeight = 9;
+			option.legend.selectedMode = false;
+			option.legend.textStyle = { fontSize: 10, color: themeTextColor };
+			delete option.legend.height;
+			option.title[1].x = '50%';
+			option.title[1].y = '34%';
+			option.series[0].center = ['50%', '38%'];
+			option.series[0].radius = ['32%', '42%'];
+			option.series[0].label.show = false;
+			option.series[0].labelLine.show = false;
+		}
+		appTimeChart.setOption(option, true);
 	}
 
 	function loadVisitListData(page) {
@@ -797,7 +843,7 @@
 			return;
 		}
 		
-		var html = '<div style="display: flex; justify-content: center; align-items: center; margin: 20px 0; gap: 5px;">';
+		var html = '<div class="oaf-url-pagination" style="display: flex; flex-wrap: wrap; justify-content: center; align-items: center; margin: 20px 0; gap: 6px;">';
 		
 		if (visit_cur_page > 1) {
 			html += '<button type="button" class="cbi-button" onclick="goToVisitPage(' + (visit_cur_page - 1) + ')" style="min-width: 60px;"><%:Prev Page%></button>';
@@ -838,7 +884,7 @@
 		
 		var startRecord = (visit_cur_page - 1) * visit_page_size + 1;
 		var endRecord = Math.min(visit_cur_page * visit_page_size, visit_total_num);
-		html += '<span style="margin-left: 20px; color: #999;"><%:Total%> ' + visit_total_num + ' <%:Records%>，<%:Showing%> ' + startRecord + '-' + endRecord + '</span>';
+		html += '<span class="oaf-pagination-total" style="flex: 1 1 100%; text-align: center; margin: 8px 0 0; color: #475467;"><%:Total%> ' + visit_total_num + ' <%:Records%>，<%:Showing%> ' + startRecord + '-' + endRecord + '</span>';
 		
 		html += '</div>';
 		paginationDiv.innerHTML = html;
@@ -935,10 +981,12 @@
 			xAxis: {
 				type: 'category',
 				data: hours,
+				/* P2-11：24 个标签全量斜排密度过高，改为 3 小时一档 */
 				axisLabel: {
 					color: textColor,
-					rotate: 45,
-					interval: 0
+					rotate: 0,
+					interval: 2,
+					fontSize: 10
 				},
 				axisLine: {
 					lineStyle: {
@@ -948,30 +996,17 @@
 			},
 			yAxis: {
 			type: 'value',
-			name: '<%:Traffic%>',
+			/* P2-11：删除 Y 轴标题（数值已带单位，标题会压在顶部刻度上）；
+			   去掉「按百位取整」，否则相邻刻度会显示成同一个值。 */
 			minInterval: 1,
-			nameTextStyle: {
-				color: textColor
-			},
+			splitNumber: 4,
 			axisLabel: {
 				color: textColor,
 				formatter: function(value) {
-					if (value === 0) return '0';
-					if (value < 1) {
-						var kb = Math.round(value * 1024);
-						if (kb >= 100) {
-							kb = Math.round(kb / 100) * 100;
-						}
-						return kb + 'KB';
-					} else if (value < 1024) {
-						var mb = Math.round(value);
-						if (mb >= 100) {
-							mb = Math.round(mb / 100) * 100;
-						}
-						return mb + 'MB';
-					} else {
-						return Math.round(value / 1024) + 'GB';
-					}
+					if (!value) return '0';
+					if (value < 1) return Math.round(value * 1024) + 'KB';
+					if (value < 1024) return (value >= 100 ? Math.round(value) : value.toFixed(1)) + 'MB';
+					return (value / 1024).toFixed(1) + 'GB';
 				}
 			},
 			axisLine: {
@@ -991,7 +1026,7 @@
 					type: 'bar',
 					data: upBytes,
 					stack: 'traffic',
-					barWidth: 20,
+					barWidth: '58%',
 					barMaxWidth: 30,
 					itemStyle: {
 						color: '#5470c6'
@@ -1002,7 +1037,7 @@
 					type: 'bar',
 					data: downBytes,
 					stack: 'traffic',
-					barWidth: 20,
+					barWidth: '58%',
 					barMaxWidth: 30,
 					itemStyle: {
 						color: '#91cc75'
@@ -1016,6 +1051,17 @@
 			return;
 		}
 		
+		/* 移动端：图例、标题、X 轴标签各让出一档高度，24 小时标签改为 6 小时一档 */
+		var trafficW = (chartDom && chartDom.clientWidth) || window.innerWidth;
+		if (trafficW <= 560) {
+			option.legend.top = 26;
+			option.grid.top = 62;
+			option.grid.bottom = 8;
+			option.grid.left = 0;
+			option.grid.right = 8;
+			option.xAxis.axisLabel.interval = 5;
+			option.xAxis.axisLabel.fontSize = 9;
+		}
 		hourlyTrafficChart.setOption(option);
 		setTimeout(function() {
 			if (hourlyTrafficChart) {
@@ -1076,7 +1122,7 @@
 				type: 'bar',
 				stack: 'apps',
 				data: appData.data,
-				barWidth: 20,
+				barWidth: '58%',
 				barMaxWidth: 30,
 				itemStyle: {
 					color: getAppColor(k)
@@ -1134,10 +1180,12 @@
 			xAxis: {
 				type: 'category',
 				data: hours,
+				/* P2-11：24 个标签全量斜排密度过高，改为 3 小时一档 */
 				axisLabel: {
 					color: textColor,
-					rotate: 45,
-					interval: 0
+					rotate: 0,
+					interval: 2,
+					fontSize: 10
 				},
 				axisLine: {
 					lineStyle: {
@@ -1147,22 +1195,19 @@
 			},
 			yAxis: {
 			type: 'value',
-			name: '<%:Duration%>',
+			/* P2-11：原实现把分钟四舍五入到小时，90m 与 120m 都显示「2h」，
+			   刻度标签重复。改为按分钟计算并保留零头，标签唯一可读。 */
 			minInterval: 60,
-			nameTextStyle: {
-				color: textColor
-			},
+			splitNumber: 4,
 			axisLabel: {
 				color: textColor,
 				formatter: function(value) {
-					if (value === 0) return '0';
-					var minutes = Math.round(value / 60);
-					if (minutes < 60) {
-						return minutes + 'm';
-					} else {
-						var hours = Math.round(minutes / 60);
-						return hours + 'h';
-					}
+					if (!value) return '0';
+					var totalMinutes = Math.round(value / 60);
+					var h = Math.floor(totalMinutes / 60);
+					var m = totalMinutes % 60;
+					if (h <= 0) return m + 'm';
+					return m ? (h + 'h' + m + 'm') : (h + 'h');
 				}
 			},
 			axisLine: {
@@ -1179,6 +1224,20 @@
 			series: series
 		};
 		
+		/* 移动端：图例可能多行，底部留 58px；标题与 X 轴同步收一档 */
+		var appsW = (chartDom && chartDom.clientWidth) || window.innerWidth;
+		if (appsW <= 560) {
+			option.legend.bottom = 2;
+			option.legend.height = 46;
+			option.legend.itemGap = 8;
+			option.legend.textStyle.fontSize = 10;
+			option.grid.top = 38;
+			option.grid.bottom = 58;
+			option.grid.left = 0;
+			option.grid.right = 8;
+			option.xAxis.axisLabel.interval = 5;
+			option.xAxis.axisLabel.fontSize = 9;
+		}
 		hourlyAppsChart.setOption(option);
 		setTimeout(function() {
 			if (hourlyAppsChart) {
@@ -1445,7 +1504,11 @@
 		var tbody = document.getElementById('behavior_rule_tbody');
 		if (!tbody) return;
 		if (!Array.isArray(rule_list) || rule_list.length === 0) {
-			tbody.innerHTML = '<tr class="tr"><td class="td" colspan="4" style="text-align:center;"><%:No parental control rules%></td></tr>';
+			tbody.innerHTML = '<tr class="tr"><td class="td" colspan="4"><div class="oaf-empty-state">' +
+				'<span class="oaf-empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 14h8"/></svg></span>' +
+				'<span class="oaf-empty-text"><%:No rules are applied to this device yet. Add one in App Filter or Internet Control.%></span>' +
+				'<button type="button" class="oaf-empty-action" onclick="window.location.href=\'<%=url("admin/services/oaf/app_filter")%>\'"><%:Go to App Filter%></button>' +
+				'</div></td></tr>';
 			return;
 		}
 		var html = '';
@@ -1577,7 +1640,458 @@
 			stopVisitAutoRefresh();
 			loadBehaviorRules();
 		}
+		if (tabId === 'tab-url-records') {
+			stopVisitAutoRefresh();
+			applyUrlRecordVisibility(currentUserInfo);
+		}
+		if (tabId === 'tab-url-lists') {
+			stopVisitAutoRefresh();
+			loadUrlLists();
+		}
 		
+	}
+
+	function applyUrlRecordVisibility(user) {
+		var disabledEl = document.getElementById('url_records_disabled');
+		var enabledEl = document.getElementById('url_records_enabled');
+		if (!disabledEl || !enabledEl) return;
+		url_records_enabled = (user && String(user.url_record_enabled) === '1');
+		disabledEl.style.display = url_records_enabled ? 'none' : 'block';
+		enabledEl.style.display = url_records_enabled ? 'block' : 'none';
+		if (url_records_enabled) {
+			initUrlRecordsFilter();
+			loadUrlRecords(url_records_cur_page);
+		} else {
+			updateUrlRecordDisabledHint();
+		}
+	}
+
+	function fetchUrlRecordSettings(callback) {
+		if (url_record_settings) {
+			callback(url_record_settings);
+			return;
+		}
+		new XHR().get('<%=url("admin/services/oaf/api/system/get_url_record_settings")%>', null,
+			function(x, data) {
+				url_record_settings = (data && (data.code === 0 || data.code === 2000))
+					? (data.data || {}) : {};
+				callback(url_record_settings);
+			},
+			function() {
+				url_record_settings = {};
+				callback(url_record_settings);
+			}
+		);
+	}
+
+	/* Keep the global switch and the per-device switch distinct in the hint:
+	 * when recording is already on globally the user only needs this device
+	 * added to the mac list, which can be done right here. */
+	function updateUrlRecordDisabledHint() {
+		var textEl = document.getElementById('url_records_disabled_text');
+		var btnEl = document.getElementById('url_records_enable_btn');
+		var linkEl = document.getElementById('url_records_enable_link');
+		if (!textEl || !btnEl || !linkEl) return;
+		fetchUrlRecordSettings(function(st) {
+			var globalOn = parseInt(st.enabled, 10) === 1;
+			if (globalOn) {
+				textEl.textContent = '<%:URL access record is enabled, but this device is not in the list yet.%>';
+				btnEl.style.display = 'inline-block';
+				linkEl.style.display = 'none';
+			} else {
+				textEl.textContent = '<%:URL access record is not enabled. Please go to Advanced Settings to enable it.%>';
+				btnEl.style.display = 'none';
+				linkEl.style.display = 'inline';
+			}
+		});
+	}
+
+	function enableUrlRecordForCurrentDevice() {
+		if (!mac) return;
+		var btnEl = document.getElementById('url_records_enable_btn');
+		if (btnEl) btnEl.disabled = true;
+		fetchUrlRecordSettings(function(st) {
+			var macs = Array.isArray(st.macs) ? st.macs.slice() : [];
+			var exists = false;
+			for (var i = 0; i < macs.length; i++) {
+				if (normMac(macs[i]) === normMac(mac)) { exists = true; break; }
+			}
+			if (!exists) macs.push(mac);
+			var payload = JSON.stringify({
+				enabled: 1,
+				days: parseInt(st.days, 10) || 7,
+				macs: macs
+			});
+			new XHR().post('<%=url("admin/services/oaf/api/system/set_url_record_settings")%>',
+				{ data: payload },
+				function(x, data) {
+					if (btnEl) btnEl.disabled = false;
+					var code = data ? parseInt(data.code, 10) : -1;
+					if (code === 0 || code === 2000) {
+						url_record_settings = null;
+						if (currentUserInfo) currentUserInfo.url_record_enabled = 1;
+						showNicknameToast('<%:URL access record enabled for this device%>', false);
+						applyUrlRecordVisibility(currentUserInfo || { url_record_enabled: 1 });
+					} else {
+						showNicknameToast('<%:Operation failed%>', true);
+					}
+				},
+				function() {
+					if (btnEl) btnEl.disabled = false;
+					showNicknameToast('<%:Operation failed%>', true);
+				}
+			);
+		});
+	}
+
+	function toDateTimeLocalValue(date) {
+		function pad(n) { return (n < 10 ? '0' : '') + n; }
+		return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) +
+			'T' + pad(date.getHours()) + ':' + pad(date.getMinutes());
+	}
+
+	function initUrlRecordsFilter() {
+		if (url_records_filter_ready) return;
+		var startEl = document.getElementById('url_records_start');
+		var endEl = document.getElementById('url_records_end');
+		if (!startEl || !endEl) return;
+		if (!endEl.value) {
+			endEl.value = toDateTimeLocalValue(new Date());
+		}
+		if (!startEl.value) {
+			startEl.value = toDateTimeLocalValue(new Date(Date.now() - 7 * 24 * 3600 * 1000));
+		}
+		url_records_filter_ready = true;
+	}
+
+	function getUrlRecordTimeRange() {
+		var startEl = document.getElementById('url_records_start');
+		var endEl = document.getElementById('url_records_end');
+		var start_time = 0;
+		var end_time = 0;
+		if (startEl && startEl.value) {
+			var s = new Date(startEl.value).getTime();
+			if (!isNaN(s)) start_time = Math.floor(s / 1000);
+		}
+		if (endEl && endEl.value) {
+			var e = new Date(endEl.value).getTime();
+			if (!isNaN(e)) end_time = Math.floor(e / 1000);
+		}
+		return { start_time: start_time, end_time: end_time };
+	}
+
+	function queryUrlRecords() {
+		url_records_cur_page = 1;
+		loadUrlRecords(1);
+	}
+
+	function loadUrlRecords(page) {
+		if (!mac) return;
+		var range = getUrlRecordTimeRange();
+		new XHR().get('<%=url("admin/services/oaf/api/user/get_url_records")%>', {
+			mac: mac,
+			start_time: range.start_time,
+			end_time: range.end_time,
+			page: page,
+			page_size: url_records_page_size
+		}, function(x, data) {
+			var payload = {};
+			if (data && (data.code === 0 || data.code === 2000)) {
+				payload = data.data || {};
+			}
+			var list = Array.isArray(payload.list) ? payload.list : [];
+			url_records_total_num = parseInt(payload.total, 10) || 0;
+			url_records_total_page = parseInt(payload.total_page, 10) || 1;
+			url_records_cur_page = parseInt(payload.page, 10) || page || 1;
+			renderUrlRecordsTable(list);
+			renderUrlRecordsPagination();
+		});
+	}
+
+	function renderUrlRecordsTable(list) {
+		var tbody = document.getElementById('url_records_tbody');
+		if (!tbody) return;
+		url_records_list = list || [];
+		if (url_records_list.length === 0) {
+			tbody.innerHTML = '<tr class="tr"><td class="td" colspan="3" style="text-align:center;"><%:No records%></td></tr>';
+			return;
+		}
+		var html = '';
+		for (var i = 0; i < url_records_list.length; i++) {
+			var item = url_records_list[i] || {};
+			var url = item.url || '--';
+			var ts = parseInt(item.timestamp, 10) || 0;
+			var timeStr = ts > 0 ? new Date(ts * 1000).toLocaleString() : '--';
+			var action = (item.action === undefined || item.action === null) ? '' : String(item.action);
+			var actionLabel = urlRecordActionLabels[action] || '';
+			/* 0 正常 / 1 已阻断 / 2 已放行，配色与黑白名单按钮保持一致 */
+			var actionClass = { '0': 'normal', '1': 'blocked', '2': 'allowed' }[action] || '';
+			html += '<tr class="tr">';
+			html += '<td class="td">' + timeStr + '</td>';
+			/* 域名与状态各用一个块级 div：span + display:block 在表格单元里
+			   会被主题的 .table .td 计算规则影响，PC 上退回行内，改为 div 最稳 */
+			html += '<td class="td"><div class="url-record-cell">' +
+				'<div class="url-record-domain">' + escape_html(url) + '</div>' +
+				(actionLabel ? '<div class="url-record-action' +
+					(actionClass ? ' url-record-action-' + actionClass : '') + '">' + actionLabel + '</div>' : '') +
+				'</div></td>';
+			html += '<td class="td">' +
+				`<button type="button" class="cbi-button cbi-button-remove oaf-url-add-black" onclick="addUrlRecordToList(${i}, 'black')"><%:Add Blacklist%></button> ` +
+				`<button type="button" class="cbi-button cbi-button-add oaf-url-add-white" onclick="addUrlRecordToList(${i}, 'white')"><%:Add Whitelist%></button>` +
+				'</td>';
+			html += '</tr>';
+		}
+		tbody.innerHTML = html;
+	}
+
+	/* P1-9：手动输入域名添加（含格式校验）；记录页反向添加复用同一套冲突检查 */
+	function submitManualUrl() {
+		var input = document.getElementById('url_add_input');
+		var form = document.getElementById('url_add_form');
+		var errEl = document.getElementById('url_add_error');
+		if (!input || !form) return;
+
+		var raw = String(input.value || '').trim();
+		var url = (typeof oafNormalizeDomain === 'function') ? oafNormalizeDomain(raw) : raw.toLowerCase();
+		var valid = (typeof oafValidDomain === 'function')
+			? oafValidDomain(url)
+			: /^[a-z0-9.-]+\.[a-z]{2,}$/.test(url);
+
+		if (!valid) {
+			form.classList.add('has-error');
+			if (errEl) errEl.textContent = '<%:Please enter a valid domain, e.g. example.com or *.example.com%>';
+			input.focus();
+			return;
+		}
+		form.classList.remove('has-error');
+		var type = String((document.getElementById('url_add_type') || {}).value || 'black');
+		addUrlWithConflictCheck(url, type);
+	}
+
+	function exportUrlRecordsCsv() {
+		if (!mac) return;
+		var range = getUrlRecordTimeRange();
+		new XHR().get('<%=url("admin/services/oaf/api/user/get_url_records")%>', {
+			mac: mac,
+			start_time: range.start_time,
+			end_time: range.end_time,
+			page: 1,
+			page_size: 5000
+		}, function(x, data) {
+			var payload = (data && (data.code === 0 || data.code === 2000)) ? (data.data || {}) : {};
+			var list = Array.isArray(payload.list) ? payload.list : [];
+			if (!list.length) {
+				showNicknameToast('<%:No records%>', true);
+				return;
+			}
+			if (typeof oafCsvExport !== 'function') return;
+			var rows = [];
+			for (var i = 0; i < list.length; i++) {
+				var it = list[i] || {};
+				var ts = parseInt(it.timestamp, 10) || 0;
+				var action = (it.action === undefined || it.action === null) ? '' : String(it.action);
+				rows.push([
+					ts > 0 ? new Date(ts * 1000).toLocaleString() : '',
+					it.url || '',
+					urlRecordActionLabels[action] || ''
+				]);
+			}
+			var stamp = new Date().toISOString().slice(0, 10);
+			oafCsvExport('url-records-' + String(mac).replace(/:/g, '') + '-' + stamp + '.csv',
+				['<%:Time%>', '<%:Visited Domain%>', '<%:Action%>'], rows);
+			showNicknameToast('<%:Exported %d record(s)%>'.replace('%d', rows.length), false);
+		});
+	}
+
+	function addUrlRecordToList(index, type) {
+		var item = url_records_list[index] || {};
+		var url = item.url || '';
+		if (!url) return;
+		addUrlWithConflictCheck(url, type);
+	}
+
+	function addUrlWithConflictCheck(url, type) {
+		/* Check the current list first: a domain must not sit in both the
+		 * blacklist and the whitelist, and repeating a click should not issue
+		 * a pointless request. */
+		new XHR().get('<%=url("admin/services/oaf/api/user/get_url_list")%>', { mac: mac },
+			function(x, data) {
+				var payload = (data && (data.code === 0 || data.code === 2000)) ? (data.data || {}) : {};
+				var list = Array.isArray(payload.list) ? payload.list : [];
+				var target = String(url).toLowerCase();
+				var existingType = '';
+				for (var i = 0; i < list.length; i++) {
+					var entry = list[i] || {};
+					if (String(entry.url || '').toLowerCase() === target) {
+						existingType = String(entry.type || '');
+						break;
+					}
+				}
+				if (existingType === type) {
+					showNicknameToast(type === 'black'
+						? '<%:This domain is already in the blacklist.%>'
+						: '<%:This domain is already in the whitelist.%>', true);
+					return;
+				}
+				if (existingType && existingType !== type) {
+					var tip = (type === 'black')
+						? '<%:This domain is already in the whitelist. Adding it to the blacklist will remove it from the whitelist. Continue?%>'
+						: '<%:This domain is already in the blacklist. Adding it to the whitelist will remove it from the blacklist. Continue?%>';
+					if (!window.confirm(tip)) return;
+				}
+				submitUrlListEntry(url, type);
+			}
+		);
+	}
+
+	function submitUrlListEntry(url, type) {
+		new XHR().post('<%=url("admin/services/oaf/api/user/add_url_list")%>',
+			{ mac: mac, url: url, type: type },
+			function(x, data) {
+				var code = data ? parseInt(data.code, 10) : -1;
+				if (code === 0 || code === 2000) {
+					var switched = data && data.data && parseInt(data.data.switched, 10) === 1;
+					if (switched) {
+						showNicknameToast(type === 'black'
+							? '<%:Moved to the blacklist%>'
+							: '<%:Moved to the whitelist%>', false);
+					} else {
+						showNicknameToast('<%:Add success%>', false);
+					}
+					var manualInput = document.getElementById('url_add_input');
+					if (manualInput) { manualInput.value = ''; }
+					var listsTab = document.getElementById('tab-url-lists');
+					if (listsTab && listsTab.classList.contains('active')) {
+						loadUrlLists();
+					}
+				} else {
+					showNicknameToast('<%:Add failed%>', true);
+				}
+			},
+			function() {
+				showNicknameToast('<%:Add failed%>', true);
+			}
+		);
+	}
+
+	function switchToUrlRecordsTab() {
+		var tabEl = document.querySelector('.tab-item[data-tab="url_records"]');
+		showTabContent('tab-url-records', tabEl);
+	}
+
+	function loadUrlLists() {
+		if (!mac) return;
+		var tbody = document.getElementById('url_lists_tbody');
+		if (tbody) {
+			tbody.innerHTML = '<tr class="tr"><td class="td" colspan="3" style="text-align:center;"><%:Loading...%></td></tr>';
+		}
+		new XHR().get('<%=url("admin/services/oaf/api/user/get_url_list")%>', { mac: mac }, function(x, data) {
+			var payload = (data && (data.code === 0 || data.code === 2000)) ? (data.data || {}) : {};
+			var list = Array.isArray(payload.list) ? payload.list : [];
+			renderUrlListsTable(list);
+		});
+	}
+
+	function renderUrlListsTable(list) {
+		var tbody = document.getElementById('url_lists_tbody');
+		if (!tbody) return;
+		url_lists_data = list || [];
+		var countEl = document.getElementById('url_lists_count');
+		if (countEl) {
+			countEl.textContent = url_lists_data.length > 0 ? '(' + url_lists_data.length + ')' : '';
+		}
+		if (url_lists_data.length === 0) {
+			tbody.innerHTML = '<tr class="tr"><td class="td" colspan="3"><div class="oaf-empty-state">' +
+				'<span class="oaf-empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg></span>' +
+				'<span class="oaf-empty-text"><%:No entries yet. Enter a domain above, or add one from URL Access Records.%></span>' +
+				'<button type="button" class="oaf-empty-action" onclick="switchToUrlRecordsTab()"><%:Go to URL Access Records%></button>' +
+				'</div></td></tr>';
+			return;
+		}
+		var html = '';
+		for (var i = 0; i < url_lists_data.length; i++) {
+			var item = url_lists_data[i] || {};
+			var isBlack = String(item.type || '') === 'black';
+			var badge = isBlack
+				? '<span class="url-list-badge url-list-black"><%:Blacklist%></span>'
+				: '<span class="url-list-badge url-list-white"><%:Whitelist%></span>';
+			html += '<tr class="tr">';
+			html += '<td class="td" style="word-break:break-all;">' + escape_html(item.url || '--') + '</td>';
+			html += '<td class="td">' + badge + '</td>';
+			html += '<td class="td"><button type="button" class="cbi-button cbi-button-remove" onclick="removeUrlListEntry(' + i + ')"><%:Delete%></button></td>';
+			html += '</tr>';
+		}
+		tbody.innerHTML = html;
+	}
+
+	function removeUrlListEntry(index) {
+		var item = url_lists_data[index] || {};
+		var url = item.url || '';
+		var type = item.type || '';
+		if (!url || !type) return;
+		new XHR().post('<%=url("admin/services/oaf/api/user/del_url_list")%>',
+			{ mac: mac, url: url, type: type },
+			function(x, data) {
+				var code = data ? parseInt(data.code, 10) : -1;
+				if (code === 0 || code === 2000) {
+					showNicknameToast('<%:Deleted%>', false);
+					loadUrlLists();
+				} else {
+					showNicknameToast('<%:Delete failed%>', true);
+				}
+			},
+			function() {
+				showNicknameToast('<%:Delete failed%>', true);
+			}
+		);
+	}
+
+	function renderUrlRecordsPagination() {
+		var paginationDiv = document.getElementById('url_records_pagination');
+		if (!paginationDiv) return;
+		if (url_records_total_page <= 1) {
+			paginationDiv.innerHTML = '';
+			return;
+		}
+		var html = '<div class="oaf-url-pagination" style="display: flex; flex-wrap: wrap; justify-content: center; align-items: center; margin: 20px 0; gap: 6px;">';
+		if (url_records_cur_page > 1) {
+			html += '<button type="button" class="cbi-button" onclick="goToUrlRecordsPage(' + (url_records_cur_page - 1) + ')" style="min-width: 60px;"><%:Prev Page%></button>';
+		} else {
+			html += '<button type="button" class="cbi-button" disabled style="min-width: 60px; opacity: 0.5;"><%:Prev Page%></button>';
+		}
+		var startPage = Math.max(1, url_records_cur_page - 2);
+		var endPage = Math.min(url_records_total_page, url_records_cur_page + 2);
+		if (startPage > 1) {
+			html += '<button type="button" class="cbi-button" onclick="goToUrlRecordsPage(1)" style="min-width: 40px;">1</button>';
+			if (startPage > 2) html += '<span style="padding: 0 5px;">...</span>';
+		}
+		for (var i = startPage; i <= endPage; i++) {
+			if (i === url_records_cur_page) {
+				html += '<button type="button" class="cbi-button cbi-button-action" style="min-width: 40px; font-weight: bold;">' + i + '</button>';
+			} else {
+				html += '<button type="button" class="cbi-button" onclick="goToUrlRecordsPage(' + i + ')" style="min-width: 40px;">' + i + '</button>';
+			}
+		}
+		if (endPage < url_records_total_page) {
+			if (endPage < url_records_total_page - 1) html += '<span style="padding: 0 5px;">...</span>';
+			html += '<button type="button" class="cbi-button" onclick="goToUrlRecordsPage(' + url_records_total_page + ')" style="min-width: 40px;">' + url_records_total_page + '</button>';
+		}
+		if (url_records_cur_page < url_records_total_page) {
+			html += '<button type="button" class="cbi-button" onclick="goToUrlRecordsPage(' + (url_records_cur_page + 1) + ')" style="min-width: 60px;"><%:Next Page%></button>';
+		} else {
+			html += '<button type="button" class="cbi-button" disabled style="min-width: 60px; opacity: 0.5;"><%:Next Page%></button>';
+		}
+		var startRecord = (url_records_cur_page - 1) * url_records_page_size + 1;
+		var endRecord = Math.min(url_records_cur_page * url_records_page_size, url_records_total_num);
+		html += '<span class="oaf-pagination-total" style="flex: 1 1 100%; text-align: center; margin: 8px 0 0; color: #475467;"><%:Total%> ' + url_records_total_num + ' <%:Records%>, <%:Showing%> ' + startRecord + '-' + endRecord + '</span>';
+		html += '</div>';
+		paginationDiv.innerHTML = html;
+	}
+
+	function goToUrlRecordsPage(page) {
+		if (page < 1 || page > url_records_total_page || page === url_records_cur_page) return;
+		url_records_cur_page = page;
+		loadUrlRecords(url_records_cur_page);
 	}
 //]]></script>
 
@@ -1585,7 +2099,7 @@
 	<div class="cbi-section">
 		<div style="padding: 20px; border-radius: 5px; background: inherit; color: inherit;">
 			<div class="user-detail-header">
-				<a href="<%=url("admin/services/oaf/users/list")%>" class="detail-back-link" title="<%:Back%>">
+				<a href="<%=url("admin/services/oaf/users")%>" class="detail-back-link" title="<%:Back%>">
 					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 5.5 9 12l6.5 6.5-1.4 1.4L6.2 12l7.9-7.9 1.4 1.4z"></path></svg>
 					<span><%:Back%></span>
 				</a>
@@ -1599,7 +2113,9 @@
 				<li class="tab-item" onclick="showTabContent('tab-traffic-statistics', this)"><%:Today Traffic%></li>
 				<li class="tab-item" onclick="showTabContent('tab-app-ranking', this)"><%:Today Top Apps%></li>
 				<li class="tab-item" onclick="showTabContent('tab-online-offline-records', this)" style="display:none"><%:Online/Offline Records%></li>
-				<li class="tab-item" onclick="showTabContent('tab-visit-records', this)"><%:Visit Records%></li>
+				<li class="tab-item" onclick="showTabContent('tab-visit-records', this)"><%:APP Access Records%></li>
+				<li class="tab-item" onclick="showTabContent('tab-url-records', this)" data-tab="url_records"><%:URL Access Records%></li>
+				<li class="tab-item" onclick="showTabContent('tab-url-lists', this)" data-tab="url_lists"><%:URL Black/White List%></li>
 			</ul>
 
 			<div id="tab-user-info" class="tab-body active">
@@ -1718,7 +2234,7 @@
 			</div>
 
 			<div id="tab-visit-records" class="tab-body">
-				<div style="max-height: 1000px; overflow-y: auto;padding-right: 20px;">
+				<div class="oaf-visit-records-wrap">
 					<table class="table cbi-section-table" id="visit_list_table">
 						<tr class="tr table-titles">
 							<th class="th">
@@ -1748,6 +2264,69 @@
 					</table>
 				</div>
 				<div id="visit_pagination" style="margin-top: 20px;"></div>
+			</div>
+			<div id="tab-url-records" class="tab-body" data-tab="url_records">
+				<div>
+					<div class="url-records-section">
+						<h5 class="url-records-title"><%:URL Access Records%></h5>
+						<div id="url_records_disabled" class="url-records-disabled" style="display:none;">
+							<span id="url_records_disabled_text"><%:URL access record is not enabled. Please go to Advanced Settings to enable it.%></span>
+							<button type="button" id="url_records_enable_btn" class="cbi-button cbi-button-apply" style="display:none; margin-left:10px;" onclick="enableUrlRecordForCurrentDevice()"><%:Enable for This Device%></button>
+							<a id="url_records_enable_link" class="url-records-link" href="<%=url("admin/services/oaf/advanced")%>"><%:Go to Enable%></a>
+						</div>
+						<div id="url_records_enabled" class="url-records-enabled" style="display:none;">
+							<div class="url-records-filter">
+								<label><%:Start Time%> <input type="datetime-local" id="url_records_start"></label>
+								<label><%:End Time%> <input type="datetime-local" id="url_records_end"></label>
+								<button type="button" class="cbi-button cbi-button-add" onclick="queryUrlRecords()"><%:Search%></button>
+								<button type="button" class="cbi-button" onclick="exportUrlRecordsCsv()"><%:Export CSV%></button>
+							</div>
+							<table class="table cbi-section-table url-records-table" style="width: 100%;">
+								<thead>
+									<tr class="tr table-titles">
+										<th class="th"><%:Time%></th>
+										<th class="th"><%:Visited Domain%></th>
+										<th class="th"><%:Actions%></th>
+									</tr>
+								</thead>
+								<tbody id="url_records_tbody">
+									<tr class="tr"><td class="td" colspan="3" style="text-align:center;"><%:Collecting data...%></td></tr>
+								</tbody>
+							</table>
+							<div id="url_records_pagination" style="margin-top: 12px;"></div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div id="tab-url-lists" class="tab-body" data-tab="url_lists">
+				<div>
+					<div class="url-records-section">
+						<h5 class="url-records-title"><%:URL Black/White List%> <span id="url_lists_count" class="url-lists-count"></span></h5>
+						<div class="form-desc-inline" style="margin: 0 0 12px;"><%:Domains added for this device. Blacklist blocks access; whitelist bypasses filtering. Changes take effect immediately.%></div>
+						<div class="oaf-url-add-form" id="url_add_form">
+							<input type="text" id="url_add_input" placeholder="<%:Enter a domain, e.g. example.com or *.example.com%>" autocomplete="off">
+							<select id="url_add_type" aria-label="<%:Type%>">
+								<option value="black"><%:Blacklist%></option>
+								<option value="white"><%:Whitelist%></option>
+							</select>
+							<button type="button" class="cbi-button cbi-button-add" id="url_add_btn" onclick="submitManualUrl()"><%:Add%></button>
+							<div class="oaf-url-add-hint"><%:Wildcards are supported, e.g. *.example.com. A domain can only be in one list; adding it to the other list moves it.%></div>
+							<div class="oaf-url-add-error" id="url_add_error"></div>
+						</div>
+						<table class="table cbi-section-table" style="width: 100%;">
+							<thead>
+								<tr class="tr table-titles">
+									<th class="th"><%:Domain%></th>
+									<th class="th" style="width: 110px;"><%:Type%></th>
+									<th class="th" style="width: 120px;"><%:Actions%></th>
+								</tr>
+							</thead>
+							<tbody id="url_lists_tbody">
+								<tr class="tr"><td class="td" colspan="3" style="text-align:center;"><%:Loading...%></td></tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -1799,6 +2378,8 @@
 	}
 	.tab-list {
 		display: flex;
+		flex-wrap: wrap;
+		row-gap: 4px;
 		list-style-type: none;
 		padding: 0;
 		margin: 0;
@@ -1824,6 +2405,31 @@
 		background-color: var(--background-color-medium, #eeeeee);
 	}
 
+	.url-list-badge {
+		display: inline-block;
+		padding: 1px 8px;
+		border-radius: 10px;
+		font-size: 12px;
+		line-height: 20px;
+	}
+
+	.url-list-black {
+		background: rgba(239, 68, 68, .12);
+		color: #dc2626;
+	}
+
+	.url-list-white {
+		background: rgba(59, 130, 246, .12);
+		color: #2563eb;
+	}
+
+	.url-lists-count {
+		font-size: 13px;
+		font-weight: 400;
+		color: var(--text-color-medium, #6b7280);
+		margin-left: 4px;
+	}
+
 	.tab-body {
 		margin-top: 5px;
 		display: none;
@@ -1833,15 +2439,20 @@
 		display: block;
 	}
 
+	/* 原来写死 min-width:600px，手机容器只有 360 左右，画布被撑到 600px
+	   后靠左显示、右侧被裁，看起来就是「图表未居中/没适配」。改由容器
+	   决定宽度，ECharts 的 resize 才有意义。 */
 	.pie-chart {
 		width: 100%;
 		max-width: 1200px;
-		min-width: 600px;
+		min-width: 0;
+		margin: 0 auto;
 	}
 	.bar-chart {
 		width: 100%;
 		max-width: 1600px;
-		min-width: 600px;
+		min-width: 0;
+		margin: 0 auto;
 	}
 
 	.behavior-rule-table .th,
@@ -2040,6 +2651,90 @@
 	.nickname-toast.error {
 		background: #dc2626;
 	}
+
+	.url-records-section {
+		padding: 6px 0;
+	}
+
+	.url-records-title {
+		margin: 0 0 10px 0;
+		color: inherit;
+	}
+
+	.url-records-disabled {
+		padding: 10px 0;
+		color: var(--text-color-medium, #6b7280);
+	}
+
+	.url-records-link {
+		margin-left: 8px;
+		color: var(--primary-color-high, #1976d2);
+		text-decoration: none;
+	}
+
+	.url-records-link:hover {
+		text-decoration: underline;
+	}
+
+	.url-records-filter {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 10px;
+		margin-bottom: 12px;
+	}
+
+	.url-records-filter label {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+	}
+
+	.url-records-filter input[type="datetime-local"] {
+		padding: 3px 6px;
+		border: 1px solid var(--border-color-medium, #d1d5db);
+		border-radius: 4px;
+		background: var(--background-color-high, #ffffff);
+		color: var(--text-color-high, #333);
+	}
+
+	.url-records-table .td {
+		word-break: break-all;
+	}
+
+	.url-record-cell {
+		display: block;
+		min-width: 0;
+	}
+
+	.url-record-domain {
+		display: block;
+		word-break: break-all;
+		line-height: 1.5;
+	}
+
+	/* 状态标签始终独占一行，位于域名正下方；
+	   仅保留 -moz-fit-content 并注释标准 width:fit-content，避免 PC 端块级标签
+	   与匿名表格盒产生内联回退、回到域名同行；底色去掉，仅保留颜色。 */
+	.url-record-action {
+		display: block;
+		width: -moz-fit-content;
+		/* width: fit-content; */
+		max-width: 100%;
+		margin: 4px 0 0;
+		padding: 1px 7px;
+		border-radius: 4px;
+		font-size: 12px;
+		line-height: 18px;
+		font-weight: 500;
+		white-space: nowrap;
+	}
+	.url-record-action-normal { color: #067647; /* background: #ecfdf3; */ }
+	.url-record-action-blocked { color: #b42318; /* background: #fef3f2; */ }
+	.url-record-action-allowed { color: #175cd3; /* background: #eff8ff; */ }
+	[data-darkmode="true"] .url-record-action-normal { color: #6ce9a6; /* background: rgba(6, 118, 71, .2); */ }
+	[data-darkmode="true"] .url-record-action-blocked { color: #fda29b; /* background: rgba(217, 45, 32, .18); */ }
+	[data-darkmode="true"] .url-record-action-allowed { color: #84caff; /* background: rgba(23, 92, 211, .22); */ }
 </style>
 
 <script type="text/javascript">

@@ -41,6 +41,7 @@
 #include "fwx_config.h"
 #include "fwx_mac_filter.h"
 #include "fwx_app_filter.h"
+#include "fwx_url_record.h"
 
 
 MODULE_LICENSE("GPL");
@@ -350,6 +351,12 @@ static int af_match_basic_cond(flow_info_t *flow, af_feature_node_t *node)
 	return AF_TRUE;
 }
 
+/* An anchored ^...$ host pattern is a regex. Requiring a '*' as well used to
+ * reject perfectly valid exact patterns such as ^example\.com$: they were
+ * inserted into the AC automaton as a literal string (which can never match
+ * a real hostname) and skipped by both fallback paths, so exact-domain rules
+ * silently never fired. The user-space custom feature editor emits ^...$ for
+ * exact/regex match modes, so the anchors alone are the correct test. */
 static int af_is_regex_host_pattern(const char *host_url)
 {
 	if (!host_url || host_url[0] == '\0') {
@@ -357,9 +364,6 @@ static int af_is_regex_host_pattern(const char *host_url)
 	}
 
 	if (host_url[0] != '^') {
-		return 0;
-	}
-	if (!strchr(host_url, '*')) {
 		return 0;
 	}
 	if (!strchr(host_url, '$')) {
@@ -2019,6 +2023,7 @@ int update_url_visiting_info(af_client_info_t *client, flow_info_t *flow)
 	char *host = NULL;
 	char host_buf[MAX_REPORT_URL_LEN] = {0};
 	unsigned int len = 0;
+	int act;
 	if (!client || !flow || flow->match_by_dns)
 		return -1;
 	
@@ -2039,10 +2044,21 @@ int update_url_visiting_info(af_client_info_t *client, flow_info_t *flow)
 	if (af_is_ip_literal_host(host_buf))
 		return -1;
 
+	act = af_url_match_rule(client->mac, host_buf);
+	if (act == 1) {
+		flow->drop = 1;
+		af_url_log_event(client->mac, host_buf, 1);
+	} else if (act == 2) {
+		flow->url_bypass = 1;
+		af_url_log_event(client->mac, host_buf, 2);
+	} else {
+		af_url_log_event(client->mac, host_buf, 0);
+	}
+
 	memcpy(client->visiting.visiting_url, host_buf, len);
 	client->visiting.visiting_url[len] = 0x0; 
 	client->visiting.url_time = af_get_timestamp_sec();
-	return 0;
+	return act;
 }
 
 
@@ -2291,7 +2307,11 @@ u_int32_t fwx_hook_bypass_handle(struct sk_buff *skb, struct net_device *dev)
 		dpi_main(&flow);
 		conn->client_hello = flow.client_hello;
 		if (!is_record_whitelist) {
-			update_url_visiting_info(client, &flow);
+			if (update_url_visiting_info(client, &flow) == 1) {
+				conn->drop = 1;
+				AF_LMT_INFO("##Drop URL blacklist, mac = " MAC_FMT "\n",
+						MAC_ARRAY(client->mac));
+			}
 			af_update_active_host_list(client, &flow);
 		}
 
@@ -2313,7 +2333,7 @@ u_int32_t fwx_hook_bypass_handle(struct sk_buff *skb, struct net_device *dev)
 			conn->state = AF_CONN_DPI_FINISHED;
 			if (!conn->ignore && !is_record_whitelist)
 				af_update_active_app_list(client, &flow);
-			if (match_app_filter_rule(flow.app_id, client)) {
+			if (!flow.url_bypass && match_app_filter_rule(flow.app_id, client)) {
 				flow.drop = 1;
 				conn->drop = 1;
 				AF_LMT_INFO("##Drop App filter rule, appid = %d, mac = " MAC_FMT "\n", 
@@ -2326,7 +2346,7 @@ u_int32_t fwx_hook_bypass_handle(struct sk_buff *skb, struct net_device *dev)
 
 	
 
-	if (!flow.drop && match_mac_filter_rule(client)) {
+	if (!flow.drop && !flow.url_bypass && match_mac_filter_rule(client)) {
 		flow.drop = 1;
 		conn->drop = 1;
 		AF_LMT_INFO("##Drop MAC filter rule, mac = " MAC_FMT "\n", 
@@ -2484,7 +2504,11 @@ u_int32_t fwx_hook_gateway_handle(struct sk_buff *skb, struct net_device *dev)
 	dpi_main(&flow);
 
 	if (!is_record_whitelist) {
-		update_url_visiting_info(client, &flow);
+		if (update_url_visiting_info(client, &flow) == 1) {
+			fwx_ct_set_bit(ct, FWX_CT_DROP_BIT, 1);
+			AF_LMT_INFO("##Drop URL blacklist, mac = " MAC_FMT "\n",
+					MAC_ARRAY(client->mac));
+		}
 	}
 	if (flow.client_hello) {
 		fwx_ct_set_bit(ct, FWX_CT_CLIENT_HELLO_BIT, 1);
@@ -2507,7 +2531,7 @@ u_int32_t fwx_hook_gateway_handle(struct sk_buff *skb, struct net_device *dev)
 			AF_LMT_DEBUG("gateway set ignore bit, mark = 0x%x\n", fwx_ct_mark_get(ct));
 		}
 		
-		if (match_app_filter_rule(flow.app_id, client)) {
+		if (!flow.url_bypass && match_app_filter_rule(flow.app_id, client)) {
 			flow.drop = 1;
 			fwx_ct_set_bit(ct, FWX_CT_DROP_BIT, 1);
 			AF_LMT_INFO("##Drop App filter rule, appid = %d, mac = " MAC_FMT "\n", 
@@ -2519,7 +2543,7 @@ u_int32_t fwx_hook_gateway_handle(struct sk_buff *skb, struct net_device *dev)
 	}
 	
 	if (ret != NF_DROP){
-		if (match_mac_filter_rule(client)) {
+		if (!flow.url_bypass && match_mac_filter_rule(client)) {
 			flow.drop = 1;
 			fwx_ct_set_bit(ct, FWX_CT_DROP_BIT, 1);
 			AF_LMT_WARN("##Drop MAC filter rule, mac = " MAC_FMT "\n", 
@@ -2547,6 +2571,8 @@ u_int32_t fwx_hook_gateway_handle(struct sk_buff *skb, struct net_device *dev)
 		AF_LMT_INFO("match %s %pI4(%d)--> %pI4(%d) len = %d, %d\n ", IPPROTO_TCP == flow.l4_protocol ? "tcp" : "udp",
 					&flow.src, flow.sport, &flow.dst, flow.dport, skb->len, flow.app_id);
 	}
+
+	if (flow.drop) ret = NF_DROP;
 
 	if (malloc_data)
 	{
@@ -2823,6 +2849,7 @@ static int __init fwx_init(void)
 	af_log_init();
 	init_af_client_procfs();
 	af_client_init();
+	af_url_record_init();
 	af_active_app_init_procfs();
 	af_active_host_init_procfs();
 	fwx_register_dev();
@@ -2859,6 +2886,7 @@ static void fwx_fini(void)
 	af_clear_active_app_list();
 	af_clear_active_host_list();
 	af_log_exit();
+	af_url_record_exit();
 	af_client_exit();
 	fwx_app_filter_exit();
 	fwx_mac_filter_exit();

@@ -54,6 +54,7 @@ config dashboard 'dashboard'
 
 config advanced 'advanced'
 	option disable_hnat '0'
+	option show_visit_url '0'
 
 config status 'status'
 	option notice_status '0'

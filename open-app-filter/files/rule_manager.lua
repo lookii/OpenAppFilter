@@ -349,6 +349,34 @@ local function uci_get_all_sections(config, section_type)
     return sections
 end
 
+-- Multi-user rules: UCI "user_macs" is a list, kept alongside the legacy
+-- single "user_mac" option for backward compatibility.
+local function normalize_user_macs(section)
+    local list = {}
+    local raw = section.user_macs
+    if type(raw) == "table" then
+        for _, mac in ipairs(raw) do
+            if mac and mac ~= "" then table.insert(list, mac) end
+        end
+    elseif type(raw) == "string" and raw ~= "" then
+        table.insert(list, raw)
+    end
+    if #list == 0 and section.user_mac and section.user_mac ~= "" then
+        table.insert(list, section.user_mac)
+    end
+    return list
+end
+
+local function rule_user_macs(rule)
+    if type(rule.user_macs) == "table" and #rule.user_macs > 0 then
+        return rule.user_macs
+    end
+    if rule.user_mac and rule.user_mac ~= "" then
+        return { rule.user_mac }
+    end
+    return {}
+end
+
 local function load_appfilter_rules()
     log("=== Loading AppFilter rules from UCI ===")
     
@@ -363,6 +391,7 @@ local function load_appfilter_rules()
             enabled = tonumber(section.enabled) or 1,
             filter_quic = tonumber(section.filter_quic) or 0,
             user_mac = section.user_mac or "",
+            user_macs = normalize_user_macs(section),
             time_rules = {},
             app_ids = {}
         }
@@ -626,6 +655,7 @@ local function load_macfilter_rules()
             time_mode = tonumber(section.time_mode) or TIME_MODE_RANGE,
             enabled = tonumber(section.enabled) or 1,
             user_mac = section.user_mac or "",
+            user_macs = normalize_user_macs(section),
             time_list = {},
             time_limit = section.time_limit or "",
             flow_limit = section.flow_limit or "",
@@ -1192,8 +1222,10 @@ local function process_appfilter_rules(current_info)
         
         if should_active then
             local mac_list = {}
-            if rule.mode == 2 and rule.user_mac and rule.user_mac ~= "" then
-                table.insert(mac_list, rule.user_mac)
+            if rule.mode == 2 then
+                for _, user_mac in ipairs(rule_user_macs(rule)) do
+                    table.insert(mac_list, user_mac)
+                end
             elseif rule.mode == 1 then
             end
             
@@ -1363,9 +1395,11 @@ local function process_macfilter_rules(current_info)
                     if rule.mode == 1 then
                         table.insert(all_user_rules, rule)
                         table.insert(all_user_range_rule_details, build_macfilter_rule_detail(rule, "time_range"))
-                    elseif rule.mode == 2 and rule.user_mac and rule.user_mac ~= "" then
-                        regular_mac_set[rule.user_mac] = true
-                        append_detail_for_mac(macfilter_detail_map, rule.user_mac, build_macfilter_rule_detail(rule, "time_range"))
+                    elseif rule.mode == 2 then
+                        for _, user_mac in ipairs(rule_user_macs(rule)) do
+                            regular_mac_set[user_mac] = true
+                            append_detail_for_mac(macfilter_detail_map, user_mac, build_macfilter_rule_detail(rule, "time_range"))
+                        end
                     end
                 end
             end
@@ -1417,8 +1451,10 @@ local function process_macfilter_rules(current_info)
                     for _, mac in ipairs(user_mac_list) do
                         table.insert(target_macs, mac)
                     end
-                elseif rule.mode == 2 and rule.user_mac and rule.user_mac ~= "" then
-                    table.insert(target_macs, rule.user_mac)
+                elseif rule.mode == 2 then
+                    for _, user_mac in ipairs(rule_user_macs(rule)) do
+                        table.insert(target_macs, user_mac)
+                    end
                 end
 
                 log(string.format("MACFilter duration rule %d (%s): mode=%d, target_macs=%d, duration_items=%d",
@@ -1487,8 +1523,10 @@ local function process_macfilter_rules(current_info)
                     for _, mac in ipairs(user_mac_list) do
                         table.insert(target_macs, mac)
                     end
-                elseif rule.mode == 2 and rule.user_mac and rule.user_mac ~= "" then
-                    table.insert(target_macs, rule.user_mac)
+                elseif rule.mode == 2 then
+                    for _, user_mac in ipairs(rule_user_macs(rule)) do
+                        table.insert(target_macs, user_mac)
+                    end
                 end
 
                 log(string.format("MACFilter flow rule %d (%s): mode=%d, target_macs=%d, flow_items=%d",

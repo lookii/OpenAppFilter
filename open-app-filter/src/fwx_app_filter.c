@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <libubox/uloop.h>
 #include <libubox/utils.h>
 #include <libubus.h>
@@ -60,6 +61,73 @@ static int find_rule_index_by_id(struct uci_context *uci_ctx, int id) {
         }
     }
     return -1; // Not found
+}
+
+/*
+ * Rules used to be keyed by time(NULL): two rules created in the same second
+ * (which is exactly what a batch import does) got the same id, so edit/delete
+ * hit the wrong rule. Allocate max(existing ids)+1 instead, but never go below
+ * the legacy timestamp so externally stored old ids keep working.
+ */
+static int next_rule_id(void)
+{
+    struct uci_context *ctx = uci_alloc_context();
+    char id_buf[32];
+    int max_id = 0;
+    int now = (int)time(NULL);
+    int num, i;
+
+    if (!ctx)
+        return now;
+    num = fwx_uci_get_list_num(ctx, "appfilter", "rule");
+    for (i = 0; i < num; i++) {
+        char key[128];
+        snprintf(key, sizeof(key), "appfilter.@rule[%d].id", i);
+        if (fwx_uci_get_value(ctx, key, id_buf, sizeof(id_buf)) == 0) {
+            int value = atoi(id_buf);
+            if (value > max_id)
+                max_id = value;
+        }
+    }
+    uci_free_context(ctx);
+    if (max_id < 0 || max_id > 2000000000)
+        max_id = 0;
+    return max_id + 1 > now ? max_id + 1 : now;
+}
+
+static int valid_mac_token(const char *mac)
+{
+    const char *p;
+
+    if (!mac || !mac[0] || strlen(mac) > 32)
+        return 0;
+    for (p = mac; *p; p++) {
+        if (!isxdigit((unsigned char)*p) && *p != ':' && *p != '-' && *p != '.')
+            return 0;
+    }
+    return 1;
+}
+
+/* Write the optional multi-user list. Falls back to the legacy single
+ * user_mac option when no list is supplied (old frontends / old backups). */
+static void write_user_macs(struct uci_context *ctx, const char *section,
+                            struct json_object *list_obj)
+{
+    char key[256];
+    int i, count;
+
+    if (!ctx || !section || !list_obj ||
+        !json_object_is_type(list_obj, json_type_array))
+        return;
+    count = json_object_array_length(list_obj);
+    for (i = 0; i < count && i < 64; i++) {
+        struct json_object *item = json_object_array_get_idx(list_obj, i);
+        const char *mac = item ? json_object_get_string(item) : NULL;
+        if (!valid_mac_token(mac))
+            continue;
+        snprintf(key, sizeof(key), "%s.user_macs", section);
+        fwx_uci_add_list(ctx, key, (char *)mac);
+    }
 }
 
 // Helper function to get option value from uci section
@@ -147,6 +215,23 @@ struct json_object *fwx_api_get_filter_rules(struct json_object *req_obj) {
         json_object_object_add(rule_obj, "name", json_object_new_string(name_str ? name_str : ""));
         json_object_object_add(rule_obj, "mode", json_object_new_int(mode_str ? atoi(mode_str) : 1));
         json_object_object_add(rule_obj, "user_mac", json_object_new_string(user_mac_str ? user_mac_str : ""));
+        /* Multi-user rules: prefer the list, fall back to the legacy single
+         * value so old configs and old frontends keep working. */
+        {
+            struct json_object *macs = json_object_new_array();
+            struct uci_option *macs_opt = uci_lookup_option(uci_ctx, s, "user_macs");
+            if (macs_opt && macs_opt->type == UCI_TYPE_LIST) {
+                struct uci_element *mac_elem;
+                uci_foreach_element(&macs_opt->v.list, mac_elem) {
+                    if (mac_elem->name && mac_elem->name[0])
+                        json_object_array_add(macs,
+                            json_object_new_string(mac_elem->name));
+                }
+            } else if (user_mac_str && user_mac_str[0]) {
+                json_object_array_add(macs, json_object_new_string(user_mac_str));
+            }
+            json_object_object_add(rule_obj, "user_macs", macs);
+        }
         json_object_object_add(rule_obj, "user_name", json_object_new_string(user_name_str ? user_name_str : ""));
         json_object_object_add(rule_obj, "enabled", json_object_new_int(enabled_str ? atoi(enabled_str) : 1));
         json_object_object_add(rule_obj, "filter_quic", json_object_new_int(filter_quic_str ? atoi(filter_quic_str) : 0));
@@ -257,7 +342,7 @@ struct json_object *fwx_api_add_filter_rule(struct json_object *req_obj) {
     }
     
 
-    int rule_id = (int)time(NULL);
+    int rule_id = next_rule_id();
     
 
     fwx_uci_add_section(uci_ctx, "appfilter", "rule");
@@ -279,6 +364,11 @@ struct json_object *fwx_api_add_filter_rule(struct json_object *req_obj) {
     if (user_mac_obj) {
         snprintf(buf, sizeof(buf), "appfilter.@rule[-1].user_mac");
         fwx_uci_set_value(uci_ctx, buf, json_object_get_string(user_mac_obj));
+    }
+
+    {
+        struct json_object *user_macs_obj = json_object_object_get(req_obj, "user_macs");
+        write_user_macs(uci_ctx, "appfilter.@rule[-1]", user_macs_obj);
     }
     
     if (user_name_obj) {
@@ -398,6 +488,17 @@ struct json_object *fwx_api_update_filter_rule(struct json_object *req_obj) {
     if (user_mac_obj) {
         snprintf(buf, sizeof(buf), "appfilter.@rule[%d].user_mac", index);
         fwx_uci_set_value(uci_ctx, buf, json_object_get_string(user_mac_obj));
+    }
+
+    {
+        struct json_object *user_macs_obj = json_object_object_get(req_obj, "user_macs");
+        if (user_macs_obj && json_object_is_type(user_macs_obj, json_type_array)) {
+            char section[128];
+            snprintf(buf, sizeof(buf), "appfilter.@rule[%d].user_macs", index);
+            fwx_uci_delete(uci_ctx, buf);
+            snprintf(section, sizeof(section), "appfilter.@rule[%d]", index);
+            write_user_macs(uci_ctx, section, user_macs_obj);
+        }
     }
     
     struct json_object *user_name_obj = json_object_object_get(req_obj, "user_name");
@@ -522,6 +623,118 @@ struct json_object *fwx_api_delete_filter_rule(struct json_object *req_obj) {
     
     LOG_DEBUG("Deleted filter rule: id=%d\n", rule_id);
     return fwx_gen_api_response_data(API_CODE_SUCCESS, NULL);
+}
+
+static struct json_object *rules_error(const char *message)
+{
+    struct json_object *data = json_object_new_object();
+
+    json_object_object_add(data, "error", json_object_new_string(message));
+    return fwx_gen_api_response_data(API_CODE_ERROR, data);
+}
+
+/* Validate one imported rule before it reaches UCI. Control characters in a
+ * name would corrupt the generated UCI lines; mode/time_rules/app_ids are the
+ * required fields of add_filter_rule. */
+static int validate_import_rule(struct json_object *rule)
+{
+    struct json_object *value;
+    const char *name;
+    int mode;
+
+    if (!rule || !json_object_is_type(rule, json_type_object))
+        return -1;
+    value = json_object_object_get(rule, "name");
+    if (!value || !json_object_is_type(value, json_type_string))
+        return -1;
+    name = json_object_get_string(value);
+    if (!name[0] || strlen(name) > 64 || strpbrk(name, "\r\n\t"))
+        return -1;
+    value = json_object_object_get(rule, "mode");
+    if (!value || !json_object_is_type(value, json_type_int))
+        return -1;
+    mode = json_object_get_int(value);
+    if (mode != 1 && mode != 2)
+        return -1;
+    value = json_object_object_get(rule, "time_rules");
+    if (!value || !json_object_is_type(value, json_type_array))
+        return -1;
+    value = json_object_object_get(rule, "app_ids");
+    if (!value || !json_object_is_type(value, json_type_array))
+        return -1;
+    return 0;
+}
+
+/* Export the current rule list in the same shape the LuCI page uses, plus a
+ * few markers so a backup file can be recognised on import. */
+struct json_object *fwx_api_export_filter_rules(struct json_object *req_obj)
+{
+    struct json_object *resp;
+
+    (void)req_obj;
+    resp = fwx_api_get_filter_rules(NULL);
+    if (!resp)
+        return rules_error("failed to read filter rules");
+    json_object_object_add(resp, "format",
+                           json_object_new_string("oaf-appfilter-rules"));
+    json_object_object_add(resp, "version", json_object_new_int(1));
+    json_object_object_add(resp, "exported_at",
+                           json_object_new_int((int)time(NULL)));
+    return resp;
+}
+
+/* mode = merge (default) | replace. Each rule is re-keyed with next_rule_id()
+ * so a batch import cannot produce duplicate ids (the old time(NULL) scheme
+ * made every rule created in the same second share one id). */
+struct json_object *fwx_api_import_filter_rules(struct json_object *req_obj)
+{
+    struct json_object *rules, *mode_obj, *result, *resp;
+    const char *mode = "merge";
+    int count, i, imported = 0, skipped = 0;
+
+    if (!req_obj)
+        return rules_error("request must be an object");
+    rules = json_object_object_get(req_obj, "rules");
+    if (!rules || !json_object_is_type(rules, json_type_array))
+        return rules_error("rules array is required");
+    count = (int)json_object_array_length(rules);
+    if (count < 1 || count > 64)
+        return rules_error("rules count must be between 1 and 64");
+    mode_obj = json_object_object_get(req_obj, "mode");
+    if (mode_obj)
+        mode = json_object_get_string(mode_obj);
+    if (mode && strcmp(mode, "replace") == 0) {
+        struct uci_context *ctx = uci_alloc_context();
+        if (ctx) {
+            int num = fwx_uci_get_list_num(ctx, "appfilter", "rule");
+            char key[64];
+            for (i = 0; i < num; i++) {
+                snprintf(key, sizeof(key), "appfilter.@rule[0]");
+                fwx_uci_delete(ctx, key);
+            }
+            fwx_uci_commit(ctx, "appfilter");
+            uci_free_context(ctx);
+        }
+    }
+    for (i = 0; i < count; i++) {
+        struct json_object *rule = json_object_array_get_idx(rules, i);
+
+        if (validate_import_rule(rule) < 0) {
+            skipped++;
+            continue;
+        }
+        json_object_object_del(rule, "id");
+        resp = fwx_api_add_filter_rule(rule);
+        if (resp)
+            json_object_put(resp);
+        imported++;
+    }
+    result = json_object_new_object();
+    json_object_object_add(result, "imported", json_object_new_int(imported));
+    json_object_object_add(result, "skipped", json_object_new_int(skipped));
+    json_object_object_add(result, "mode",
+                           json_object_new_string(mode ? mode : "merge"));
+    return fwx_gen_api_response_data(API_CODE_SUCCESS, result);
 }
 
 
